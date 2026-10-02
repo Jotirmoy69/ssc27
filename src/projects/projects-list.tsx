@@ -145,7 +145,7 @@ export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsList
       </div>
       <div className="projects-list__preview">
         <p className="projects-years">
-          <span>2024</span>
+          <span>2015</span>
           <span />
           <span>2025</span>
         </p>
