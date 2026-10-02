@@ -22,6 +22,72 @@ type PreviewPhoto = {
   index: number;
 };
 
+function EditableDescription({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setDraft(value);
+    setEditing(false);
+  }, [value]);
+
+  useEffect(() => {
+    if (!editing || !inputRef.current) return;
+    inputRef.current.focus();
+    inputRef.current.select();
+  }, [editing]);
+
+  const display = value.trim() || '-no description';
+
+  if (editing) {
+    return (
+      <textarea
+        ref={inputRef}
+        className="photo-preview__text photo-preview__text--editing"
+        value={draft}
+        rows={Math.max(1, draft.split('\n').length)}
+        aria-label="Photo description"
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          onSave(draft.trim());
+          setEditing(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            setDraft(value);
+            setEditing(false);
+          }
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <p
+      className={`photo-preview__text${value.trim() ? '' : ' is-empty'}`}
+      onDoubleClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+      title="Double-click to edit"
+    >
+      {display}
+    </p>
+  );
+}
+
 export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
@@ -34,6 +100,7 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
 
   const [ready, setReady] = useState(false);
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
+  const [descriptions, setDescriptions] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const root = rootRef.current;
@@ -49,6 +116,7 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
     closingRef.current = false;
     setReady(false);
     setPreview(null);
+    setDescriptions({});
 
     gsap.set(root, {
       top: origin.top,
@@ -190,7 +258,12 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
             </div>
             <div className="photo-preview__meta">
               <h2 className="photo-preview__heading">Description</h2>
-              <p className="photo-preview__text">-no description</p>
+              <EditableDescription
+                value={descriptions[preview.index] ?? ''}
+                onSave={(next) => {
+                  setDescriptions((prev) => ({ ...prev, [preview.index]: next }));
+                }}
+              />
             </div>
           </div>
         </div>
