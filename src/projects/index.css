@@ -316,8 +316,11 @@
   position: relative;
   align-items: center;
   justify-content: center;
+  border: none;
   border-radius: 999999px;
-  transition: all 0.4s ease;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.25s ease, transform 0.25s ease;
 }
 
 .switcher__button span {
@@ -325,7 +328,19 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--grey);
-  transition: all 0.4s 0.4s ease;
+  transition: color 0.25s ease;
+}
+
+.switcher__button:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.switcher__button:hover:not(.is-active) span {
+  color: var(--white);
+}
+
+.switcher__button:active:not(.is-active) {
+  transform: scale(0.97);
 }
 
 .switcher__indicator {
