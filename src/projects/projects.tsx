@@ -12,7 +12,7 @@ import { AlbumViewer, type AlbumOrigin } from './album-viewer';
 import { ProjectsList } from './projects-list';
 import { ProjectsSwitcher } from './projects-switcher';
 import { ProjectsWrapper } from './projects-wrapper';
-import { projects as initialProjects, type Project } from './projetcs.data';
+import type { Project } from './projetcs.data';
 
 import './index.css';
 
@@ -26,37 +26,36 @@ type OpenAlbum = {
 const CLOUD_ALBUM_ID = -1;
 
 export function Projects() {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [openAlbum, setOpenAlbum] = useState<OpenAlbum | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  const syncCloudAlbum = async () => {
+    const items = await listAllImages();
+    if (!items.length) {
+      setProjects([]);
+      return;
+    }
+
+    const photos = items.map((item) => imageUrl(item.url));
+    setProjects([
+      {
+        id: CLOUD_ALBUM_ID,
+        position: 1,
+        name: 'School Memories',
+        person: 'School Memories',
+        image: photos[0],
+        photos,
+      },
+    ]);
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    listAllImages()
-      .then((items) => {
-        if (cancelled || !items.length) return;
-
-        const photos = items.map((item) => imageUrl(item.url));
-        const cloudAlbum: Project = {
-          id: CLOUD_ALBUM_ID,
-          position: 1,
-          name: 'School Memories',
-          person: 'School Memories',
-          image: photos[0],
-          photos,
-        };
-
-        setProjects((prev) => {
-          const withoutCloud = prev.filter((project) => project.id !== CLOUD_ALBUM_ID);
-          return [cloudAlbum, ...withoutCloud].map((project, index) => ({
-            ...project,
-            position: index + 1,
-          }));
-        });
-      })
+    syncCloudAlbum()
       .catch(() => {
-        // Keep local demo albums if the API is unreachable.
+        if (!cancelled) setProjects([]);
       });
 
     return () => {
@@ -184,48 +183,11 @@ export function Projects() {
     });
   };
 
-  const refreshCloudAlbum = async () => {
-    try {
-      const items = await listAllImages();
-      if (!items.length) return;
-
-      const photos = items.map((item) => imageUrl(item.url));
-      const cloudAlbum: Project = {
-        id: CLOUD_ALBUM_ID,
-        position: 1,
-        name: 'School Memories',
-        person: 'School Memories',
-        image: photos[0],
-        photos,
-      };
-
-      setProjects((prev) => {
-        const withoutCloud = prev.filter((project) => project.id !== CLOUD_ALBUM_ID);
-        return [cloudAlbum, ...withoutCloud].map((project, index) => ({
-          ...project,
-          position: index + 1,
-        }));
-      });
-    } catch {
-      // Ignore refresh errors; local album still exists.
-    }
-  };
-
-  const handleUploadComplete = (album: UploadedAlbum) => {
-    setProjects((prev) => {
-      const id = prev.reduce((max, item) => Math.max(max, item.id), 0) + 1;
-      const next: Project = {
-        id,
-        position: prev.length + 1,
-        name: `project ${prev.length + 1}`,
-        person: album.person,
-        image: album.cover,
-        photos: album.photos,
-      };
-      return [...prev, next].map((project, index) => ({ ...project, position: index + 1 }));
-    });
+  const handleUploadComplete = (_album: UploadedAlbum) => {
     setUploadOpen(false);
-    void refreshCloudAlbum();
+    void syncCloudAlbum().catch(() => {
+      // Keep current album if refresh fails.
+    });
   };
 
   const overlayOpen = Boolean(openAlbum || uploadOpen);

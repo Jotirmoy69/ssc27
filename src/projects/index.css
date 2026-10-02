@@ -42,8 +42,9 @@
   display: grid;
   padding-left: 20px;
   min-height: 100svh;
-  align-items: center;
-  padding-block: 100px;
+  align-items: start;
+  align-content: start;
+  padding-block: 40px 100px;
   position: relative;
   grid-template-columns: repeat(4, 1fr);
 }
