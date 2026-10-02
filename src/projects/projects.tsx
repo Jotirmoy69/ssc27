@@ -6,6 +6,7 @@ import { useGSAP } from '@gsap/react';
 import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+import { isDescriptionStoreName } from '../api/descriptions';
 import { imageUrl, listAllImages } from '../api/school-memories';
 import { AlbumUpload, type UploadedAlbum } from './album-upload';
 import { AlbumViewer, type AlbumOrigin } from './album-viewer';
@@ -32,12 +33,15 @@ export function Projects() {
 
   const syncCloudAlbum = async () => {
     const items = await listAllImages();
-    if (!items.length) {
+    const photos = items
+      .filter((item) => !isDescriptionStoreName(item.name))
+      .map((item) => imageUrl(item.url));
+
+    if (!photos.length) {
       setProjects([]);
       return;
     }
 
-    const photos = items.map((item) => imageUrl(item.url));
     setProjects([
       {
         id: CLOUD_ALBUM_ID,

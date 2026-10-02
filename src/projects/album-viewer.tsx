@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
+import {
+  descriptionStorageKey,
+  fetchSharedDescriptions,
+  persistSharedDescriptions,
+} from '../api/descriptions';
 import type { Project } from './projetcs.data';
 
 export type AlbumOrigin = {
@@ -24,25 +29,42 @@ type PreviewPhoto = {
 
 function EditableDescription({
   value,
+  saving,
   onSave,
 }: {
   value: string;
-  onSave: (next: string) => void;
+  saving?: boolean;
+  onSave: (next: string) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  const draftRef = useRef(value);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const committingRef = useRef(false);
 
   useEffect(() => {
     setDraft(value);
+    draftRef.current = value;
     setEditing(false);
   }, [value]);
 
   useEffect(() => {
     if (!editing || !inputRef.current) return;
     inputRef.current.focus();
-    inputRef.current.select();
+    const end = inputRef.current.value.length;
+    inputRef.current.setSelectionRange(end, end);
   }, [editing]);
+
+  const commit = async () => {
+    if (committingRef.current) return;
+    committingRef.current = true;
+    try {
+      await onSave(draftRef.current.trim());
+      setEditing(false);
+    } finally {
+      committingRef.current = false;
+    }
+  };
 
   const display = value.trim() || '-no description';
 
@@ -54,14 +76,18 @@ function EditableDescription({
         value={draft}
         rows={Math.max(1, draft.split('\n').length)}
         aria-label="Photo description"
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          const next = event.target.value;
+          draftRef.current = next;
+          setDraft(next);
+        }}
         onBlur={() => {
-          onSave(draft.trim());
-          setEditing(false);
+          void commit();
         }}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.stopPropagation();
+            draftRef.current = value;
             setDraft(value);
             setEditing(false);
           }
@@ -75,16 +101,20 @@ function EditableDescription({
   }
 
   return (
-    <p
-      className={`photo-preview__text${value.trim() ? '' : ' is-empty'}`}
-      onDoubleClick={() => {
-        setDraft(value);
-        setEditing(true);
-      }}
-      title="Double-click to edit"
-    >
-      {display}
-    </p>
+    <>
+      <p
+        className={`photo-preview__text${value.trim() ? '' : ' is-empty'}`}
+        onDoubleClick={() => {
+          draftRef.current = value;
+          setDraft(value);
+          setEditing(true);
+        }}
+        title="Double-click to edit"
+      >
+        {display}
+      </p>
+      {saving ? <p className="photo-preview__save-status">Saving…</p> : null}
+    </>
   );
 }
 
@@ -100,7 +130,25 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
 
   const [ready, setReady] = useState(false);
   const [preview, setPreview] = useState<PreviewPhoto | null>(null);
-  const [descriptions, setDescriptions] = useState<Record<number, string>>({});
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchSharedDescriptions()
+      .then((map) => {
+        if (!cancelled) setDescriptions(map);
+      })
+      .catch(() => {
+        // Keep empty map if cloud descriptions cannot load.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -116,7 +164,6 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
     closingRef.current = false;
     setReady(false);
     setPreview(null);
-    setDescriptions({});
 
     gsap.set(root, {
       top: origin.top,
@@ -211,6 +258,8 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
     gsap.fromTo(card, { opacity: 0, scale: 0.94, y: 16 }, { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'power3.out' });
   }, [preview]);
 
+  const previewKey = preview ? descriptionStorageKey(preview.src) : '';
+
   return createPortal(
     <div ref={rootRef} className="album-viewer" role="dialog" aria-modal="true" aria-label={`Images of ${project.person}`}>
       <div ref={coverRef} className="album-viewer__cover" style={{ backgroundImage: `url(${origin.image})` }} />
@@ -259,11 +308,40 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
             <div className="photo-preview__meta">
               <h2 className="photo-preview__heading">Description</h2>
               <EditableDescription
-                value={descriptions[preview.index] ?? ''}
-                onSave={(next) => {
-                  setDescriptions((prev) => ({ ...prev, [preview.index]: next }));
+                value={descriptions[previewKey] ?? ''}
+                saving={savingDescription}
+                onSave={async (next) => {
+                  let snapshot: Record<string, string> = {};
+                  let updated: Record<string, string> = {};
+
+                  setDescriptions((prev) => {
+                    snapshot = prev;
+                    const previous = prev[previewKey] ?? '';
+                    if (next === previous) {
+                      updated = prev;
+                      return prev;
+                    }
+                    updated = { ...prev };
+                    if (next) updated[previewKey] = next;
+                    else delete updated[previewKey];
+                    return updated;
+                  });
+
+                  if (updated === snapshot || JSON.stringify(updated) === JSON.stringify(snapshot)) return;
+
+                  setSavingDescription(true);
+                  setSaveError('');
+                  try {
+                    await persistSharedDescriptions(updated);
+                  } catch (error) {
+                    setDescriptions(snapshot);
+                    setSaveError(error instanceof Error ? error.message : 'Could not save description');
+                  } finally {
+                    setSavingDescription(false);
+                  }
                 }}
               />
+              {saveError ? <p className="photo-preview__save-error">{saveError}</p> : null}
             </div>
           </div>
         </div>
