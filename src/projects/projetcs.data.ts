@@ -7,7 +7,20 @@ export type Project = {
   photos: string[];
 };
 
-const allImages = Array.from({ length: 17 }, (_, i) => `/images/${i + 1}.jpeg`);
+const imageModules = import.meta.glob('../assets/images/*.{jpeg,jpg,webp,png}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
+
+function resolveLocalImage(n: number): string {
+  const match = Object.entries(imageModules).find(([path]) => {
+    const file = path.split('/').pop() ?? '';
+    return file === `${n}.jpeg` || file === `${n}.jpg` || file === `${n}.webp` || file === `${n}.png`;
+  });
+  return match?.[1] ?? `/images/${n}.jpeg`;
+}
+
+const allImages = Array.from({ length: 17 }, (_, i) => resolveLocalImage(i + 1));
 
 const people = [
   'Jotirmoy',
