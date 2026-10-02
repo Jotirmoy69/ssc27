@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Lenis from 'lenis';
 
 import { gsap } from 'gsap';
@@ -5,17 +6,65 @@ import { useGSAP } from '@gsap/react';
 import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+import { imageUrl, listAllImages } from '../api/school-memories';
+import { AlbumUpload, type UploadedAlbum } from './album-upload';
+import { AlbumViewer, type AlbumOrigin } from './album-viewer';
 import { ProjectsList } from './projects-list';
 import { ProjectsSwitcher } from './projects-switcher';
 import { ProjectsWrapper } from './projects-wrapper';
+import { projects as initialProjects, type Project } from './projetcs.data';
 
 import './index.css';
 
 gsap.registerPlugin(useGSAP, Flip, ScrollTrigger);
 
+type OpenAlbum = {
+  project: Project;
+  origin: AlbumOrigin;
+};
+
+const CLOUD_ALBUM_ID = -1;
+
 export function Projects() {
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [openAlbum, setOpenAlbum] = useState<OpenAlbum | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    listAllImages()
+      .then((items) => {
+        if (cancelled || !items.length) return;
+
+        const photos = items.map((item) => imageUrl(item.url));
+        const cloudAlbum: Project = {
+          id: CLOUD_ALBUM_ID,
+          position: 1,
+          name: 'School Memories',
+          person: 'School Memories',
+          image: photos[0],
+          photos,
+        };
+
+        setProjects((prev) => {
+          const withoutCloud = prev.filter((project) => project.id !== CLOUD_ALBUM_ID);
+          return [cloudAlbum, ...withoutCloud].map((project, index) => ({
+            ...project,
+            position: index + 1,
+          }));
+        });
+      })
+      .catch(() => {
+        // Keep local demo albums if the API is unreachable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useGSAP(() => {
-    // lenis scroll
     const wrapper = document.querySelector('.wrapper');
     const content = document.querySelector('.scroller');
 
@@ -23,10 +72,10 @@ export function Projects() {
 
     const lenis = new Lenis({ wrapper, content, autoRaf: false });
     lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    const tickerFn = (time: number) => lenis.raf(time * 1000);
+    gsap.ticker.add(tickerFn);
     gsap.ticker.lagSmoothing(0);
 
-    // dom elements
     const projectsList = document.querySelector('.projects-list');
     const projectsListContents = document.querySelector('.projects-list__contents');
     const projectsListPreview = document.querySelector('.projects-list__preview');
@@ -34,11 +83,9 @@ export function Projects() {
     const sliderButton = document.querySelector('.switcher__button--slider');
     const indicator = document.querySelector('.switcher__indicator');
 
-    // timeline
     const tl = gsap.timeline();
 
-    // grid button event
-    gridButton?.addEventListener('click', () => {
+    const onGridClick = () => {
       gsap.set([gridButton, sliderButton], { pointerEvents: 'none' });
       gsap.to(indicator, { x: 0, duration: 1.2, ease: 'power4.inOut' });
 
@@ -48,10 +95,11 @@ export function Projects() {
       lenis.scrollTo(0, {
         duration: 1,
         onComplete: () => {
-          const state = Flip.getState('.project');
+          const state = Flip.getState('.project, .album-add');
 
           projectsList?.classList.remove('is-slider');
           projectsListContents?.classList.remove('is-slider');
+          gsap.set(projectsListContents, { clearProps: 'x' });
 
           Flip.from(state, {
             duration: 1.4,
@@ -64,14 +112,14 @@ export function Projects() {
             },
           });
 
+          tl.clear();
           tl.to(projectsListPreview, { clipPath: 'inset(0% 0% 0% 0%)', delay: 1.6, duration: 1.4, ease: 'power4.out' });
         },
       });
-    });
+    };
 
-    // slider button event
-    sliderButton?.addEventListener('click', () => {
-      const state = Flip.getState('.project');
+    const onSliderClick = () => {
+      const state = Flip.getState('.project, .album-add');
 
       gsap.set([gridButton, sliderButton], { pointerEvents: 'none' });
       gsap.to(indicator, { x: 80, duration: 1.2, ease: 'power4.inOut' });
@@ -83,6 +131,7 @@ export function Projects() {
       projectsList?.classList.add('is-slider');
       projectsListContents?.classList.add('is-slider');
 
+      tl.clear();
       tl.to(projectsListPreview, { clipPath: 'inset(0% 0% 0% 100%)', duration: 1.4, ease: 'power4.out' });
 
       Flip.from(state, {
@@ -94,7 +143,8 @@ export function Projects() {
         onComplete: () => {
           gsap.set([gridButton, sliderButton], { pointerEvents: 'auto' });
 
-          const projectsElements = document.querySelectorAll('.project');
+          const projectsElements = document.querySelectorAll('.project, .album-add');
+          if (!projectsElements.length) return;
 
           const card = projectsElements[0].getBoundingClientRect();
           const totalWidth = card.width * projectsElements.length + card.width * 0.4;
@@ -105,13 +155,91 @@ export function Projects() {
           });
         },
       });
-    });
+    };
+
+    gridButton?.addEventListener('click', onGridClick);
+    sliderButton?.addEventListener('click', onSliderClick);
+
+    return () => {
+      gridButton?.removeEventListener('click', onGridClick);
+      sliderButton?.removeEventListener('click', onSliderClick);
+      gsap.ticker.remove(tickerFn);
+      lenis.destroy();
+      ScrollTrigger.killAll();
+      tl.kill();
+    };
   });
+
+  const handleOpenAlbum = (project: Project, imageEl: HTMLElement) => {
+    const rect = imageEl.getBoundingClientRect();
+    setOpenAlbum({
+      project,
+      origin: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        image: project.image,
+      },
+    });
+  };
+
+  const refreshCloudAlbum = async () => {
+    try {
+      const items = await listAllImages();
+      if (!items.length) return;
+
+      const photos = items.map((item) => imageUrl(item.url));
+      const cloudAlbum: Project = {
+        id: CLOUD_ALBUM_ID,
+        position: 1,
+        name: 'School Memories',
+        person: 'School Memories',
+        image: photos[0],
+        photos,
+      };
+
+      setProjects((prev) => {
+        const withoutCloud = prev.filter((project) => project.id !== CLOUD_ALBUM_ID);
+        return [cloudAlbum, ...withoutCloud].map((project, index) => ({
+          ...project,
+          position: index + 1,
+        }));
+      });
+    } catch {
+      // Ignore refresh errors; local album still exists.
+    }
+  };
+
+  const handleUploadComplete = (album: UploadedAlbum) => {
+    setProjects((prev) => {
+      const id = prev.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+      const next: Project = {
+        id,
+        position: prev.length + 1,
+        name: `project ${prev.length + 1}`,
+        person: album.person,
+        image: album.cover,
+        photos: album.photos,
+      };
+      return [...prev, next].map((project, index) => ({ ...project, position: index + 1 }));
+    });
+    setUploadOpen(false);
+    void refreshCloudAlbum();
+  };
+
+  const overlayOpen = Boolean(openAlbum || uploadOpen);
 
   return (
     <ProjectsWrapper>
-      <ProjectsList />
-      <ProjectsSwitcher />
+      <ProjectsList projects={projects} onOpenAlbum={handleOpenAlbum} onAddAlbum={() => setUploadOpen(true)} />
+      <div className={`switcher-slot${overlayOpen ? ' is-hidden' : ''}`}>
+        <ProjectsSwitcher />
+      </div>
+      {openAlbum ? (
+        <AlbumViewer project={openAlbum.project} origin={openAlbum.origin} onClose={() => setOpenAlbum(null)} />
+      ) : null}
+      {uploadOpen ? <AlbumUpload onClose={() => setUploadOpen(false)} onComplete={handleUploadComplete} /> : null}
     </ProjectsWrapper>
   );
 }

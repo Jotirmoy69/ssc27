@@ -1,19 +1,43 @@
-export const projects = [
-  { id: 0, position: 1, name: 'project 1', image: '/images/1.jpeg' },
-  { id: 1, position: 2, name: 'project 2', image: '/images/2.jpeg' },
-  { id: 2, position: 3, name: 'project 3', image: '/images/3.jpeg' },
-  { id: 3, position: 4, name: 'project 4', image: '/images/4.jpeg' },
-  { id: 4, position: 5, name: 'project 5', image: '/images/5.jpeg' },
-  { id: 5, position: 6, name: 'project 6', image: '/images/6.jpeg' },
-  { id: 6, position: 7, name: 'project 7', image: '/images/7.jpeg' },
-  { id: 7, position: 8, name: 'project 8', image: '/images/8.jpeg' },
-  { id: 8, position: 9, name: 'project 9', image: '/images/9.jpeg' },
-  { id: 9, position: 10, name: 'project 10', image: '/images/10.jpeg' },
-  { id: 10, position: 11, name: 'project 11', image: '/images/11.jpeg' },
-  { id: 11, position: 12, name: 'project 12', image: '/images/12.jpeg' },
-  { id: 12, position: 13, name: 'project 13', image: '/images/13.jpeg' },
-  { id: 13, position: 14, name: 'project 14', image: '/images/14.jpeg' },
-  { id: 14, position: 15, name: 'project 15', image: '/images/15.jpeg' },
-  { id: 15, position: 16, name: 'project 16', image: '/images/16.jpeg' },
-  { id: 16, position: 17, name: 'project 17', image: '/images/17.jpeg' },
+export type Project = {
+  id: number;
+  position: number;
+  name: string;
+  person: string;
+  image: string;
+  photos: string[];
+};
+
+const allImages = Array.from({ length: 17 }, (_, i) => `/images/${i + 1}.jpeg`);
+
+const people = [
+  'Jotirmoy',
+  'Aria',
+  'Kenji',
+  'Maya',
+  'Noah',
+  'Lina',
+  'Omar',
+  'Elena',
+  'Felix',
+  'Priya',
+  'Hugo',
+  'Sofia',
+  'Ravi',
+  'Clara',
+  'Jonas',
+  'Amira',
+  'Theo',
 ];
+
+function albumPhotos(coverIndex: number, count = 18): string[] {
+  return Array.from({ length: count }, (_, i) => allImages[(coverIndex + i) % allImages.length]);
+}
+
+export const projects: Project[] = allImages.map((image, id) => ({
+  id,
+  position: id + 1,
+  name: `project ${id + 1}`,
+  person: people[id] ?? `Person ${id + 1}`,
+  image,
+  photos: albumPhotos(id),
+}));
