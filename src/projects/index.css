@@ -1046,36 +1046,40 @@
     position: sticky;
     top: 0;
     z-index: 3;
-    gap: 12px;
-    margin: 0 -14px 16px;
+    gap: 10px;
+    margin: 0 -14px 18px;
     padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .album-viewer__title {
     min-width: 0;
-    font-size: 16px;
+    flex: 1;
+    font-size: 17px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
+  /* Mobile convention: Back on the left (desktop stays title | Back) */
   .album-viewer__back {
+    order: -1;
     flex-shrink: 0;
     height: 40px;
-    padding: 0 16px 0 12px;
+    padding: 0 14px 0 12px;
     touch-action: manipulation;
   }
 
   .album-viewer__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .album-viewer__cell {
-    border-radius: 12px;
+    border-radius: 14px;
     touch-action: manipulation;
   }
 
@@ -1275,12 +1279,11 @@
   }
 
   .album-viewer__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 10px;
   }
 
   .album-viewer__cell {
-    border-radius: 10px;
+    border-radius: 12px;
   }
 
   .album-upload__thumbs {
