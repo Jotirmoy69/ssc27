@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
+import AnimatedInput from '@/components/ui/smoothui/animated-input';
 import {
   descriptionStorageKey,
   fetchSharedDescriptions,
@@ -20,7 +21,21 @@ type AlbumViewerProps = {
   project: Project;
   origin: AlbumOrigin;
   onClose: () => void;
+  onAddPhotos?: () => void;
+  /** `stairs` skips the thumbnail expand and reveals fullscreen under the curtain. */
+  transition?: 'expand' | 'stairs';
 };
+
+function AlbumAddIcon() {
+  return (
+    <span className="album-viewer__add-icon" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 3.5" />
+        <path d="M32 20v24M20 32h24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
 
 type PreviewPhoto = {
   src: string;
@@ -39,7 +54,6 @@ function EditableDescription({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const draftRef = useRef(value);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const committingRef = useRef(false);
 
   useEffect(() => {
@@ -47,13 +61,6 @@ function EditableDescription({
     draftRef.current = value;
     setEditing(false);
   }, [value]);
-
-  useEffect(() => {
-    if (!editing || !inputRef.current) return;
-    inputRef.current.focus();
-    const end = inputRef.current.value.length;
-    inputRef.current.setSelectionRange(end, end);
-  }, [editing]);
 
   const commit = async () => {
     if (committingRef.current) return;
@@ -70,14 +77,13 @@ function EditableDescription({
 
   if (editing) {
     return (
-      <textarea
-        ref={inputRef}
-        className="photo-preview__text photo-preview__text--editing"
+      <AnimatedInput
+        autoFocus
+        className="photo-preview__animated-input"
+        label="Description"
+        placeholder="Add a description"
         value={draft}
-        rows={Math.max(1, draft.split('\n').length)}
-        aria-label="Photo description"
-        onChange={(event) => {
-          const next = event.target.value;
+        onChange={(next) => {
           draftRef.current = next;
           setDraft(next);
         }}
@@ -91,7 +97,7 @@ function EditableDescription({
             setDraft(value);
             setEditing(false);
           }
-          if (event.key === 'Enter' && !event.shiftKey) {
+          if (event.key === 'Enter') {
             event.preventDefault();
             event.currentTarget.blur();
           }
@@ -118,7 +124,13 @@ function EditableDescription({
   );
 }
 
-export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
+export function AlbumViewer({
+  project,
+  origin,
+  onClose,
+  onAddPhotos,
+  transition = 'expand',
+}: AlbumViewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -165,40 +177,54 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
     setReady(false);
     setPreview(null);
 
-    gsap.set(root, {
-      top: origin.top,
-      left: origin.left,
-      width: origin.width,
-      height: origin.height,
-      borderRadius: 0,
-    });
-    gsap.set(cover, { opacity: 1 });
-    gsap.set(header, { opacity: 0, y: -12 });
-    gsap.set(cells, { opacity: 0, scale: 0.86, y: 18 });
-
-    openTl
-      .to(root, {
+    if (transition === 'stairs') {
+      gsap.set(root, {
         top: 0,
         left: 0,
         width: '100%',
         height: '100%',
-        duration: 1.05,
-        ease: 'power4.inOut',
-      })
-      .to(cover, { opacity: 0, duration: 0.35, ease: 'power2.out' }, '-=0.25')
-      .to(header, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' }, '-=0.1')
-      .to(
-        cells,
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 0.45,
-          stagger: 0.06,
-          ease: 'power3.out',
-        },
-        '-=0.15',
-      );
+        borderRadius: 0,
+      });
+      gsap.set(cover, { opacity: 0 });
+      gsap.set(header, { opacity: 1, y: 0 });
+      gsap.set(cells, { opacity: 1, scale: 1, y: 0 });
+      setReady(true);
+    } else {
+      gsap.set(root, {
+        top: origin.top,
+        left: origin.left,
+        width: origin.width,
+        height: origin.height,
+        borderRadius: 0,
+      });
+      gsap.set(cover, { opacity: 1 });
+      gsap.set(header, { opacity: 0, y: -12 });
+      gsap.set(cells, { opacity: 0, scale: 0.86, y: 18 });
+
+      openTl
+        .to(root, {
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          duration: 1.05,
+          ease: 'power4.inOut',
+        })
+        .to(cover, { opacity: 0, duration: 0.35, ease: 'power2.out' }, '-=0.25')
+        .to(header, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' }, '-=0.1')
+        .to(
+          cells,
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.45,
+            stagger: 0.06,
+            ease: 'power3.out',
+          },
+          '-=0.15',
+        );
+    }
 
     const closeAlbum = () => {
       if (closingRef.current) return;
@@ -206,6 +232,11 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
       setPreview(null);
       setReady(false);
       openTl.kill();
+
+      if (transition === 'stairs') {
+        onCloseRef.current();
+        return;
+      }
 
       gsap
         .timeline({ onComplete: () => onCloseRef.current() })
@@ -233,7 +264,7 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
       backButton?.removeEventListener('click', closeAlbum);
       openTl.kill();
     };
-  }, [origin, project.id]);
+  }, [origin, project.id, transition]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -287,6 +318,17 @@ export function AlbumViewer({ project, origin, onClose }: AlbumViewerProps) {
               <img src={src} alt={`${project.person} photo ${index + 1}`} draggable={false} />
             </button>
           ))}
+          {onAddPhotos ? (
+            <button
+              type="button"
+              className="album-viewer__cell album-viewer__cell--add"
+              disabled={!ready}
+              aria-label="Add images to album"
+              onClick={onAddPhotos}
+            >
+              <AlbumAddIcon />
+            </button>
+          ) : null}
         </div>
       </div>
 

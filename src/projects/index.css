@@ -476,6 +476,30 @@
   pointer-events: none;
 }
 
+.album-viewer__cell--add {
+  display: grid;
+  place-items: center;
+  color: var(--black);
+  background: var(--light-grey);
+  border-radius: 0;
+}
+
+.album-viewer__add-icon {
+  width: clamp(36px, 42%, 56px);
+  height: clamp(36px, 42%, 56px);
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.album-viewer__add-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.album-viewer__grid.is-ready .album-viewer__cell--add:hover .album-viewer__add-icon {
+  transform: scale(1.06);
+}
+
 /* PHOTO PREVIEW */
 
 .photo-preview {
@@ -675,26 +699,16 @@
 }
 
 .album-upload__field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--black);
+  width: 100%;
+  margin-top: 12px;
+  /* Room for the floating label above the input border */
+  padding-top: 10px;
 }
 
-.album-upload__field input {
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid #e4e4e4;
-  border-radius: 12px;
-  font: inherit;
-  color: var(--black);
-  background: var(--white);
-  outline: none;
-}
-
-.album-upload__field input:focus {
-  border-color: #bdbdbd;
+.photo-preview__animated-input {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 10px;
 }
 
 .album-upload__drop {

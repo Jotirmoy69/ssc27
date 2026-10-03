@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Lenis from 'lenis';
 
 import { gsap } from 'gsap';
@@ -6,9 +6,20 @@ import { useGSAP } from '@gsap/react';
 import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import { isDescriptionStoreName } from '../api/descriptions';
-import { imageUrl, listAllImages } from '../api/school-memories';
-import { AlbumUpload, type UploadedAlbum } from './album-upload';
+import PagePreloader from '@/components/ui/smoothui/page-preloader';
+import {
+  albumNumericId,
+  appendPhotosToAlbum,
+  createSharedAlbum,
+  fetchSharedAlbums,
+  type StoredAlbum,
+} from '../api/albums';
+import { preloadImageUrls } from '../api/preload-school-memories';
+import {
+  AlbumUpload,
+  type AddedPhotosPayload,
+  type CreatedAlbumPayload,
+} from './album-upload';
 import { AlbumViewer, type AlbumOrigin } from './album-viewer';
 import { ProjectsList } from './projects-list';
 import { ProjectsSwitcher } from './projects-switcher';
@@ -24,40 +35,42 @@ type OpenAlbum = {
   origin: AlbumOrigin;
 };
 
-const CLOUD_ALBUM_ID = -1;
+type UploadState =
+  | { mode: 'create' }
+  | { mode: 'add'; albumId: string; albumName: string };
+
+const STAIRS_COLUMNS = 6;
+const STAIRS_ENTER_MS = (0.55 + (STAIRS_COLUMNS - 1) * 0.06) * 1000;
+const ALBUM_HOLD_MS = 700;
+
+function toProject(album: StoredAlbum, position: number): Project {
+  return {
+    id: albumNumericId(album.id),
+    albumId: album.id,
+    position,
+    name: album.person,
+    person: album.person,
+    image: album.cover,
+    photos: album.photos,
+  };
+}
 
 export function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [openAlbum, setOpenAlbum] = useState<OpenAlbum | null>(null);
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [upload, setUpload] = useState<UploadState | null>(null);
+  const [stairsActive, setStairsActive] = useState(false);
+  const openingRef = useRef(false);
 
-  const syncCloudAlbum = async () => {
-    const items = await listAllImages();
-    const photos = items
-      .filter((item) => !isDescriptionStoreName(item.name))
-      .map((item) => imageUrl(item.url));
-
-    if (!photos.length) {
-      setProjects([]);
-      return;
-    }
-
-    setProjects([
-      {
-        id: CLOUD_ALBUM_ID,
-        position: 1,
-        name: 'School Memories',
-        person: 'School Memories',
-        image: photos[0],
-        photos,
-      },
-    ]);
+  const syncAlbums = async (force = false) => {
+    const albums = await fetchSharedAlbums(force);
+    setProjects(albums.map((album, index) => toProject(album, index + 1)));
   };
 
   useEffect(() => {
     let cancelled = false;
 
-    syncCloudAlbum()
+    syncAlbums()
       .catch(() => {
         if (!cancelled) setProjects([]);
       });
@@ -173,9 +186,25 @@ export function Projects() {
     };
   });
 
+  const runStairs = async (duringHold: () => void | Promise<void>) => {
+    if (openingRef.current || stairsActive) return;
+    openingRef.current = true;
+    setStairsActive(true);
+
+    try {
+      await new Promise<void>((resolve) => setTimeout(resolve, STAIRS_ENTER_MS));
+      await Promise.all([
+        Promise.resolve(duringHold()),
+        new Promise<void>((resolve) => setTimeout(resolve, ALBUM_HOLD_MS)),
+      ]);
+    } finally {
+      setStairsActive(false);
+    }
+  };
+
   const handleOpenAlbum = (project: Project, imageEl: HTMLElement) => {
     const rect = imageEl.getBoundingClientRect();
-    setOpenAlbum({
+    const nextAlbum: OpenAlbum = {
       project,
       origin: {
         top: rect.top,
@@ -184,28 +213,88 @@ export function Projects() {
         height: rect.height,
         image: project.image,
       },
+    };
+
+    void runStairs(async () => {
+      setOpenAlbum(nextAlbum);
+      await preloadImageUrls(project.photos).catch(() => undefined);
     });
   };
 
-  const handleUploadComplete = (_album: UploadedAlbum) => {
-    setUploadOpen(false);
-    void syncCloudAlbum().catch(() => {
-      // Keep current album if refresh fails.
+  const handleCloseAlbum = () => {
+    void runStairs(() => {
+      setOpenAlbum(null);
     });
   };
 
-  const overlayOpen = Boolean(openAlbum || uploadOpen);
+  const handleCreateAlbum = async (payload: CreatedAlbumPayload) => {
+    const album = await createSharedAlbum(payload);
+    await syncAlbums(true);
+    setUpload(null);
+    await preloadImageUrls([album.cover]).catch(() => undefined);
+  };
+
+  const handleAddPhotos = async (payload: AddedPhotosPayload) => {
+    if (!upload || upload.mode !== 'add') return;
+    const updated = await appendPhotosToAlbum(upload.albumId, payload.photos);
+    const project = toProject(
+      updated,
+      projects.find((item) => item.albumId === updated.id)?.position ?? 1,
+    );
+    setProjects((prev) => prev.map((item) => (item.albumId === project.albumId ? project : item)));
+    setOpenAlbum((prev) => (prev && prev.project.albumId === project.albumId ? { ...prev, project } : prev));
+    setUpload(null);
+    await preloadImageUrls(payload.photos).catch(() => undefined);
+  };
+
+  const overlayOpen = Boolean(openAlbum || upload || stairsActive);
 
   return (
     <ProjectsWrapper>
-      <ProjectsList projects={projects} onOpenAlbum={handleOpenAlbum} onAddAlbum={() => setUploadOpen(true)} />
+      <ProjectsList
+        projects={projects}
+        onOpenAlbum={handleOpenAlbum}
+        onAddAlbum={() => setUpload({ mode: 'create' })}
+      />
       <div className={`switcher-slot${overlayOpen ? ' is-hidden' : ''}`}>
         <ProjectsSwitcher />
       </div>
       {openAlbum ? (
-        <AlbumViewer project={openAlbum.project} origin={openAlbum.origin} onClose={() => setOpenAlbum(null)} />
+        <AlbumViewer
+          project={openAlbum.project}
+          origin={openAlbum.origin}
+          transition="stairs"
+          onClose={handleCloseAlbum}
+          onAddPhotos={() =>
+            setUpload({
+              mode: 'add',
+              albumId: openAlbum.project.albumId,
+              albumName: openAlbum.project.person,
+            })
+          }
+        />
       ) : null}
-      {uploadOpen ? <AlbumUpload onClose={() => setUploadOpen(false)} onComplete={handleUploadComplete} /> : null}
+      {upload?.mode === 'create' ? (
+        <AlbumUpload mode="create" onClose={() => setUpload(null)} onComplete={handleCreateAlbum} />
+      ) : null}
+      {upload?.mode === 'add' ? (
+        <AlbumUpload
+          mode="add"
+          albumName={upload.albumName}
+          onClose={() => setUpload(null)}
+          onComplete={handleAddPhotos}
+        />
+      ) : null}
+      <PagePreloader
+        variant="stairs"
+        background="bg-black"
+        active={stairsActive}
+        columns={STAIRS_COLUMNS}
+        defaultActive={false}
+        onComplete={() => {
+          openingRef.current = false;
+        }}
+      />
     </ProjectsWrapper>
   );
 }

@@ -136,7 +136,7 @@ export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsList
           </button>
         ))}
 
-        <button type="button" className="album-add" onClick={onAddAlbum} aria-label="Upload new album">
+        <button type="button" className="album-add" onClick={onAddAlbum} aria-label="Create new album">
           <p className="project__number">{projects.length + 1}</p>
           <span className="album-add__box">
             <PlusIcon />
