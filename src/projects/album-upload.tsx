@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import AnimatedInput from '@/components/ui/smoothui/animated-input';
+import { motion, useReducedMotion } from 'motion/react';
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import { compressToWebP } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
 
@@ -43,6 +44,43 @@ function UploadPlusIcon() {
         <path d="M28 17v22M17 28h22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
     </span>
+  );
+}
+
+function AnimatedCloseIcon() {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.span
+      className="album-upload__close-icon"
+      aria-hidden="true"
+      initial={reduceMotion ? false : { rotate: -90, opacity: 0, scale: 0.7 }}
+      animate={{ rotate: 0, opacity: 1, scale: 1 }}
+      whileHover={reduceMotion ? undefined : { rotate: 90, scale: 1.08 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.92 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+    >
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <motion.path
+          d="M6 6L18 18"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          initial={reduceMotion ? false : { pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        />
+        <motion.path
+          d="M18 6L6 18"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          initial={reduceMotion ? false : { pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+    </motion.span>
   );
 }
 
@@ -178,21 +216,24 @@ export function AlbumUpload(props: AlbumUploadProps) {
             disabled={busy}
             aria-label="Close"
           >
-            Close
+            <AnimatedCloseIcon />
           </button>
         </header>
 
         <div className="album-upload__body">
           {mode === 'create' ? (
             <>
-              <AnimatedInput
-                className="album-upload__field"
-                label="Person / album name"
-                placeholder="e.g. Jotirmoy"
-                value={person}
-                disabled={busy}
-                onChange={setPerson}
-              />
+              <label className="album-upload__field">
+                <span className="album-upload__field-label">Person / album name</span>
+                <SmoothInput
+                  aria-label="Person / album name"
+                  placeholder="e.g. Jotirmoy"
+                  value={person}
+                  disabled={busy}
+                  fontSize={16}
+                  onChange={(event) => setPerson(event.target.value)}
+                />
+              </label>
 
               <section className="album-upload__section">
                 <div className="album-upload__section-head">

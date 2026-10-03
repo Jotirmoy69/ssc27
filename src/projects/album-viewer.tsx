@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import AnimatedInput from '@/components/ui/smoothui/animated-input';
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import {
   descriptionStorageKey,
   fetchSharedDescriptions,
@@ -77,13 +77,16 @@ function EditableDescription({
 
   if (editing) {
     return (
-      <AnimatedInput
+      <SmoothInput
         autoFocus
         className="photo-preview__animated-input"
-        label="Description"
+        wrapperClassName="photo-preview__smooth-input"
+        aria-label="Description"
         placeholder="Add a description"
         value={draft}
-        onChange={(next) => {
+        fontSize={14}
+        onChange={(event) => {
+          const next = event.target.value;
           draftRef.current = next;
           setDraft(next);
         }}
