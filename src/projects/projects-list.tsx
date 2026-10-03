@@ -1,3 +1,4 @@
+import { AnimatedPlusIcon } from './animated-plus-icon';
 import type { Project } from './projetcs.data';
 
 type ProjectsListProps = {
@@ -101,17 +102,6 @@ function EyeIcon() {
   );
 }
 
-function PlusIcon() {
-  return (
-    <span className="album-add__icon" aria-hidden="true">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 3.5" />
-        <path d="M32 20v24M20 32h24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
-
 export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsListProps) {
   return (
     <div className="projects-list">
@@ -139,7 +129,7 @@ export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsList
         <button type="button" className="album-add" onClick={onAddAlbum} aria-label="Create new album">
           <p className="project__number">{projects.length + 1}</p>
           <span className="album-add__box">
-            <PlusIcon />
+            <AnimatedPlusIcon className="album-add__icon" />
           </span>
         </button>
       </div>

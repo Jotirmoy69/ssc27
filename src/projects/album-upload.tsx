@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import { compressToWebP } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
+import { AnimatedPlusIcon } from './animated-plus-icon';
 
 export type CreatedAlbumPayload = {
   person: string;
@@ -35,17 +36,6 @@ type LocalFile = {
   file: File;
   preview: string;
 };
-
-function UploadPlusIcon() {
-  return (
-    <span className="album-upload__plus" aria-hidden="true">
-      <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="28" cy="28" r="26.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 3.5" />
-        <path d="M28 17v22M17 28h22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
 
 function AnimatedCloseIcon() {
   const reduceMotion = useReducedMotion();
@@ -204,6 +194,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
       }}
     >
       <div className="album-upload__card">
+        <span className="album-upload__handle" aria-hidden="true" />
         <header className="album-upload__header">
           <div>
             <h2 className="album-upload__title">{title}</h2>
@@ -256,7 +247,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
                     <img src={cover.preview} alt="Cover preview" className="album-upload__preview" draggable={false} />
                   ) : (
                     <span className="album-upload__drop-label">
-                      <UploadPlusIcon />
+                      <AnimatedPlusIcon className="album-upload__plus" size={48} />
                       Choose cover poster
                     </span>
                   )}
@@ -283,7 +274,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
                   }}
                 />
                 <span className="album-upload__drop-label">
-                  <UploadPlusIcon />
+                  <AnimatedPlusIcon className="album-upload__plus" size={48} />
                   Add images
                 </span>
               </label>

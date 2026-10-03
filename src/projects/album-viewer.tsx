@@ -7,6 +7,7 @@ import {
   fetchSharedDescriptions,
   persistSharedDescriptions,
 } from '../api/descriptions';
+import { AnimatedPlusIcon } from './animated-plus-icon';
 import type { Project } from './projetcs.data';
 
 export type AlbumOrigin = {
@@ -25,17 +26,6 @@ type AlbumViewerProps = {
   /** `stairs` skips the thumbnail expand and reveals fullscreen under the curtain. */
   transition?: 'expand' | 'stairs';
 };
-
-function AlbumAddIcon() {
-  return (
-    <span className="album-viewer__add-icon" aria-hidden="true">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 3.5" />
-        <path d="M32 20v24M20 32h24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
 
 type PreviewPhoto = {
   src: string;
@@ -75,6 +65,12 @@ function EditableDescription({
 
   const display = value.trim() || '-no description';
 
+  const startEditing = () => {
+    draftRef.current = value;
+    setDraft(value);
+    setEditing(true);
+  };
+
   if (editing) {
     return (
       <SmoothInput
@@ -113,10 +109,10 @@ function EditableDescription({
     <>
       <p
         className={`photo-preview__text${value.trim() ? '' : ' is-empty'}`}
-        onDoubleClick={() => {
-          draftRef.current = value;
-          setDraft(value);
-          setEditing(true);
+        onDoubleClick={startEditing}
+        onClick={() => {
+          // Touch screens have no double-click, so a single tap edits there.
+          if (window.matchMedia('(hover: none)').matches) startEditing();
         }}
         title="Double-click to edit"
       >
@@ -329,7 +325,7 @@ export function AlbumViewer({
               aria-label="Add images to album"
               onClick={onAddPhotos}
             >
-              <AlbumAddIcon />
+              <AnimatedPlusIcon className="album-viewer__add-icon" />
             </button>
           ) : null}
         </div>
@@ -347,6 +343,17 @@ export function AlbumViewer({
           }}
         >
           <div className="photo-preview__card">
+            <span className="photo-preview__handle" aria-hidden="true" />
+            <button
+              type="button"
+              className="photo-preview__close"
+              aria-label="Close preview"
+              onClick={() => setPreview(null)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
+            </button>
             <div className="photo-preview__image">
               <img src={preview.src} alt={`${project.person} photo ${preview.index + 1}`} draggable={false} />
             </div>
