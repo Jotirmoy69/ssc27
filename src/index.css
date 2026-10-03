@@ -1,10 +1,22 @@
 @import 'tailwindcss';
+@source "../components";
+
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #222222;
+  --color-brand: #222222;
+  --color-ring: #222222;
+}
 
 :root {
   --black: #222222;
   --white: #ffffff;
   --grey: #eeeeee;
   --light-grey: #f2f2f2;
+  --background: #ffffff;
+  --foreground: #222222;
+  --brand: #222222;
+  --color-brand: #222222;
 }
 
 *,
@@ -32,4 +44,43 @@ body,
   background-color: var(--white);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* SmoothUI AnimatedInput — explicit CSS so global padding:0 can't collapse it */
+.animated-input__control {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1px solid #e4e4e4;
+  border-radius: 14px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+  font-size: 14px;
+  line-height: 52px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.animated-input__control.has-icon {
+  padding-left: 40px;
+}
+
+.animated-input__control:focus {
+  border-color: #222;
+}
+
+.animated-input__label {
+  pointer-events: none;
+  position: absolute;
+  left: 12px;
+  z-index: 2;
+  transform-origin: left center;
+  padding: 0 4px;
+  background: #fff;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
 }
