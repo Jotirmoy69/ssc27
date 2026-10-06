@@ -19,6 +19,7 @@
     "motion": "^14.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-masonry-virtualized": "^2.3.2",
     "reicon-react": "^1.2.6",
     "tailwind-variants": "^1.0.0",
     "tailwindcss": "^4.1.11"
