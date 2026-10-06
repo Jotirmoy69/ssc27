@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Agentation } from 'agentation';
-import { SmoothCursor } from '@/components/ui/smooth-cursor';
 import { SquiCircleFilterStatic } from '@/components/ui/skiper-ui/skiper63';
-import DrawingCursor from '@/components/ui/smoothui/drawing-cursor';
 import PagePreloader from '@/components/ui/smoothui/page-preloader';
 import { preloadSchoolMemories } from './api/preload-school-memories';
 import { Projects } from './projects';
@@ -28,15 +26,8 @@ export function App() {
   }, []);
 
   return (
-    <DrawingCursor
-      className="h-full w-full"
-      color="#222222"
-      lineWidth={2.5}
-      decay={900}
-      clearOnLeave={false}
-    >
+    <div className="relative h-full w-full">
       <SquiCircleFilterStatic />
-      <SmoothCursor />
       <PagePreloader
         variant="stairs"
         background="bg-black"
@@ -46,6 +37,6 @@ export function App() {
       />
       <Projects />
       <Agentation />
-    </DrawingCursor>
+    </div>
   );
 }

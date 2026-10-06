@@ -27,24 +27,6 @@
   box-sizing: border-box;
 }
 
-/* Hide the system cursor everywhere on desktop; SmoothCursor replaces it.
-   Text fields keep a text caret so the arrow cursor doesn't sit on inputs. */
-@media (any-hover: hover) and (any-pointer: fine) {
-  html,
-  body,
-  *,
-  *::before,
-  *::after {
-    cursor: none !important;
-  }
-
-  input,
-  textarea,
-  [contenteditable="true"],
-  [contenteditable=""] {
-    cursor: text !important;
-  }
-}
 
 html,
 body,
