@@ -301,10 +301,16 @@ export function AlbumViewer({
   const previewUser = currentUserId ? { id: currentUserId } : null;
   const canDeletePreview =
     preview && onDeletePhoto ? canDeletePhoto(preview.photo, previewUser, isAdmin) : false;
-  const uploaderLabel =
-    isAdmin && preview
-      ? preview.photo.ownerName || preview.photo.ownerEmail || (preview.photo.ownerId === 'legacy' ? 'Unknown (legacy)' : '')
-      : '';
+  const uploaderLabel = (() => {
+    if (!isAdmin || !preview) return '';
+    const { ownerEmail, ownerName, ownerId } = preview.photo;
+    if (ownerEmail) {
+      return ownerName ? `${ownerEmail} (${ownerName})` : ownerEmail;
+    }
+    if (ownerName) return ownerName;
+    if (ownerId === 'legacy') return 'Unknown (legacy)';
+    return ownerId ? `User ${ownerId.slice(0, 8)}…` : '';
+  })();
 
   return createPortal(
     <div ref={rootRef} className="album-viewer" role="dialog" aria-modal="true" aria-label={`Images of ${project.person}`}>

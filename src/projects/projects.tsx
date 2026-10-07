@@ -90,6 +90,15 @@ export function Projects() {
     };
   }, [isAdmin]);
 
+  // Keep the open album in sync when admin status / ownership fields refresh.
+  useEffect(() => {
+    setOpenAlbum((prev) => {
+      if (!prev) return prev;
+      const next = projects.find((item) => item.albumId === prev.project.albumId);
+      return next ? { ...prev, project: next } : prev;
+    });
+  }, [projects]);
+
   useGSAP(() => {
     const wrapper = document.querySelector('.wrapper');
     const content = document.querySelector('.scroller');
