@@ -161,8 +161,9 @@ export function AlbumUpload(props: AlbumUploadProps) {
     setStatus(`${next.length} image${next.length === 1 ? '' : 's'} ready`);
   };
 
+  const albumName = person.trim();
   const canFinish =
-    mode === 'create' ? Boolean(cover) : photos.length > 0;
+    mode === 'create' ? Boolean(albumName && cover) : photos.length > 0;
 
   const handleProceed = async () => {
     if (!canFinish || busy) return;
@@ -171,12 +172,21 @@ export function AlbumUpload(props: AlbumUploadProps) {
 
     try {
       if (mode === 'create') {
-        if (!cover) return;
+        if (!albumName) {
+          setError('Enter an album name before proceeding.');
+          setBusy(false);
+          return;
+        }
+        if (!cover) {
+          setError('Choose a cover photo before proceeding.');
+          setBusy(false);
+          return;
+        }
         setStatus('Uploading cover…');
         const coverUrl = await uploadFile(cover.file);
         setStatus('Saving album…');
         await props.onComplete({
-          person: person.trim() || 'Untitled',
+          person: albumName,
           cover: coverUrl,
         });
         return;
@@ -330,9 +340,13 @@ export function AlbumUpload(props: AlbumUploadProps) {
         <footer className="album-upload__footer">
           <span className="album-upload__hint">
             {mode === 'create'
-              ? cover
-                ? 'Cover ready'
-                : 'Cover needed'
+              ? !albumName && !cover
+                ? 'Name and cover needed'
+                : !albumName
+                  ? 'Album name needed'
+                  : !cover
+                    ? 'Cover needed'
+                    : 'Ready to create'
               : `${photos.length} image${photos.length === 1 ? '' : 's'} selected`}
           </span>
           <button type="button" className="album-upload__btn" disabled={!canFinish || busy} onClick={() => void handleProceed()}>
