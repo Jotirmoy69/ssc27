@@ -79,9 +79,10 @@ function AnimatedCloseIcon() {
 async function uploadFile(file: File): Promise<string> {
   const webp = await compressToWebP(file);
   const result = await uploadWebP(webp, `${file.name.replace(/\.[^.]+$/, '') || 'memory'}.webp`);
-  const remoteUrl = imageUrl(
-    result.url ?? (result.key ? `/api/image?key=${encodeURIComponent(result.key)}` : ''),
-  );
+  // Prefer the Worker key path so album attach can resolve ownership reliably.
+  const remoteUrl = result.key
+    ? imageUrl(`/api/image?key=${encodeURIComponent(result.key)}`)
+    : imageUrl(result.url || '');
   if (!remoteUrl) throw new Error('Upload succeeded but no image URL was returned');
   return remoteUrl;
 }

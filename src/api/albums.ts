@@ -152,12 +152,13 @@ export async function createSharedAlbum(input: {
   cover: string;
   createdBy?: PhotoOwner;
 }): Promise<StoredAlbum> {
+  const coverKey = photoKeyFromUrl(input.cover);
   const response = await apiFetch('/api/albums', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       person: input.person.trim() || 'Untitled',
-      cover: input.cover,
+      cover: coverKey || input.cover,
     }),
   });
 
@@ -179,7 +180,12 @@ export async function appendPhotosToAlbum(
   albumId: string,
   photos: PhotoEntry[] | string[],
 ): Promise<StoredAlbum> {
-  const urls = photos.map((photo) => (typeof photo === 'string' ? photo : photo.url));
+  const urls = photos.map((photo) => {
+    const url = typeof photo === 'string' ? photo : photo.url;
+    const key = photoKeyFromUrl(url);
+    // Worker accepts either a photos/… key or an /api/image?key=… URL.
+    return key || url;
+  });
 
   const response = await apiFetch(`/api/albums/${encodeURIComponent(albumId)}/photos`, {
     method: 'POST',
