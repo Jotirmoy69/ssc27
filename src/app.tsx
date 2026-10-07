@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Agentation } from 'agentation';
 import { SquiCircleFilterStatic } from '@/components/ui/skiper-ui/skiper63';
 import PagePreloader from '@/components/ui/smoothui/page-preloader';
+import { AuthChip } from './auth/auth-chip';
+import { AuthProvider } from './auth/auth-context';
 import { preloadSchoolMemories } from './api/preload-school-memories';
 import { Projects } from './projects';
 
@@ -26,17 +28,20 @@ export function App() {
   }, []);
 
   return (
-    <div className="relative h-full w-full">
-      <SquiCircleFilterStatic />
-      <PagePreloader
-        variant="stairs"
-        background="bg-black"
-        active={preloading}
-        columns={6}
-        startCovered
-      />
-      <Projects />
-      <Agentation />
-    </div>
+    <AuthProvider>
+      <div className="relative h-full w-full">
+        <SquiCircleFilterStatic />
+        <PagePreloader
+          variant="stairs"
+          background="bg-black"
+          active={preloading}
+          columns={6}
+          startCovered
+        />
+        <AuthChip />
+        <Projects />
+        <Agentation />
+      </div>
+    </AuthProvider>
   );
 }
