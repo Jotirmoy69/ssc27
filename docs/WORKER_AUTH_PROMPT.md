@@ -25,7 +25,7 @@ Do **not** add D1/KV/Durable Objects unless absolutely necessary. Store ownershi
 | Name | Purpose |
 |------|---------|
 | `GOOGLE_CLIENT_ID` | Same Web client ID as frontend `VITE_GOOGLE_CLIENT_ID` |
-| `ADMIN_EMAIL` | Exact admin Google email (case-insensitive compare) |
+| `ADMIN_EMAIL` / `ADMIN_EMAIL_1`…`ADMIN_EMAIL_10` | Admin Google emails (case-insensitive). Any match is admin. |
 | Existing B2 vars | Keep `B2_ENDPOINT`, `BUCKET_NAME`, `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY` |
 | `ADMIN_PASSWORD` | Optional: keep for the Worker’s own HTML admin page only |
 
@@ -48,7 +48,7 @@ Add a helper that:
 
 Cache JWKS in memory for ~1 hour.
 
-Treat a user as **admin** when `email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()`.
+Treat a user as **admin** when their email matches any of `ADMIN_EMAIL`, `ADMIN_EMAIL_1` … `ADMIN_EMAIL_10` (case-insensitive). Same pattern as the frontend `VITE_ADMIN_EMAIL_*` list.
 
 ---
 
@@ -225,7 +225,7 @@ Browsing stays open; only mutations require Google login.
 
 ## Frontend contract (already implemented)
 
-- Env: `VITE_GOOGLE_CLIENT_ID`, `VITE_ADMIN_EMAIL`
+- Env: `VITE_GOOGLE_CLIENT_ID`, `VITE_ADMIN_EMAIL_1`…`VITE_ADMIN_EMAIL_10` (and optional legacy `VITE_ADMIN_EMAIL`)
 - `+` buttons open a login modal if signed out
 - Uploads send `Authorization: Bearer <id_token>`
 - Deletes call `POST /api/delete` with the same header, then remove the URL from the album sidecar

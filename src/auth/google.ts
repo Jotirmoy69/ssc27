@@ -9,14 +9,46 @@ export function getGoogleClientId(): string {
   return String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
 }
 
+/**
+ * Admins from env. Supports:
+ * - `VITE_ADMIN_EMAIL` (single / legacy)
+ * - `VITE_ADMIN_EMAIL_1` … `VITE_ADMIN_EMAIL_10` (as many as you set)
+ *
+ * Names must be referenced statically so Vite embeds them at build time.
+ */
+export function getAdminEmails(): string[] {
+  const raw = [
+    import.meta.env.VITE_ADMIN_EMAIL,
+    import.meta.env.VITE_ADMIN_EMAIL_1,
+    import.meta.env.VITE_ADMIN_EMAIL_2,
+    import.meta.env.VITE_ADMIN_EMAIL_3,
+    import.meta.env.VITE_ADMIN_EMAIL_4,
+    import.meta.env.VITE_ADMIN_EMAIL_5,
+    import.meta.env.VITE_ADMIN_EMAIL_6,
+    import.meta.env.VITE_ADMIN_EMAIL_7,
+    import.meta.env.VITE_ADMIN_EMAIL_8,
+    import.meta.env.VITE_ADMIN_EMAIL_9,
+    import.meta.env.VITE_ADMIN_EMAIL_10,
+  ];
+
+  const emails = new Set<string>();
+  for (const value of raw) {
+    const email = String(value || '').trim().toLowerCase();
+    if (email) emails.add(email);
+  }
+  return [...emails];
+}
+
+/** @deprecated Prefer getAdminEmails() — kept for older call sites. */
 export function getAdminEmail(): string {
-  return String(import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+  return getAdminEmails()[0] || '';
 }
 
 export function isAdminEmail(email: string | undefined | null): boolean {
-  const admin = getAdminEmail();
-  if (!admin || !email) return false;
-  return email.trim().toLowerCase() === admin;
+  if (!email) return false;
+  const admins = getAdminEmails();
+  if (!admins.length) return false;
+  return admins.includes(email.trim().toLowerCase());
 }
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
