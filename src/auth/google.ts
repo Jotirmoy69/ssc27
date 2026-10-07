@@ -5,6 +5,16 @@ const STORAGE_KEY = 'sm-google-auth';
 
 let scriptPromise: Promise<void> | null = null;
 
+type StoredAuth = {
+  idToken?: string;
+  profile?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+  };
+};
+
 export function getGoogleClientId(): string {
   return String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
 }
@@ -68,6 +78,7 @@ export function userFromIdToken(idToken: string): AuthUser | null {
   if (!payload) return null;
 
   const exp = typeof payload.exp === 'number' ? payload.exp : 0;
+  // Reject tokens already expired (small skew allowed).
   if (exp && exp * 1000 < Date.now() - 30_000) return null;
 
   const id = typeof payload.sub === 'string' ? payload.sub : '';
@@ -83,24 +94,62 @@ export function userFromIdToken(idToken: string): AuthUser | null {
   };
 }
 
-export function loadStoredUser(): AuthUser | null {
+function readRawStore(): StoredAuth | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { idToken?: string };
-    if (!parsed.idToken) return null;
-    return userFromIdToken(parsed.idToken);
+    // Prefer localStorage (survives tab close). Migrate old sessionStorage once.
+    const local = localStorage.getItem(STORAGE_KEY);
+    if (local) return JSON.parse(local) as StoredAuth;
+
+    const session = sessionStorage.getItem(STORAGE_KEY);
+    if (session) {
+      localStorage.setItem(STORAGE_KEY, session);
+      sessionStorage.removeItem(STORAGE_KEY);
+      return JSON.parse(session) as StoredAuth;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
+/** Valid signed-in user with a non-expired Google ID token. */
+export function loadStoredUser(): AuthUser | null {
+  const parsed = readRawStore();
+  if (!parsed?.idToken) return null;
+  return userFromIdToken(parsed.idToken);
+}
+
+/** Last signed-in profile (may outlive the ID token) — used for silent re-auth. */
+export function loadRememberedProfile(): StoredAuth['profile'] | null {
+  return readRawStore()?.profile ?? null;
+}
+
 export function storeUser(user: AuthUser | null): void {
-  if (!user) {
+  try {
     sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+
+  if (!user) {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
     return;
   }
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ idToken: user.idToken }));
+
+  const payload: StoredAuth = {
+    idToken: user.idToken,
+    profile: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    },
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 export function loadGoogleScript(): Promise<void> {
@@ -132,6 +181,7 @@ export function loadGoogleScript(): Promise<void> {
 
 export async function initializeGoogleId(
   onCredential: (response: GoogleCredentialResponse) => void,
+  options?: { autoSelect?: boolean },
 ): Promise<void> {
   const clientId = getGoogleClientId();
   if (!clientId) throw new Error('Missing VITE_GOOGLE_CLIENT_ID');
@@ -142,10 +192,42 @@ export async function initializeGoogleId(
   window.google.accounts.id.initialize({
     client_id: clientId,
     callback: onCredential,
-    auto_select: false,
+    auto_select: Boolean(options?.autoSelect),
     cancel_on_tap_outside: true,
     context: 'signin',
     ux_mode: 'popup',
+  });
+}
+
+/** Try Google One Tap / auto-select to mint a fresh ID token without a button click. */
+export function promptGoogleSignIn(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!window.google?.accounts?.id) {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+
+    const timer = window.setTimeout(() => finish(false), 2800);
+
+    try {
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          window.clearTimeout(timer);
+          finish(false);
+        }
+        // Success path is handled by the initialize callback; keep waiting briefly.
+      });
+    } catch {
+      window.clearTimeout(timer);
+      finish(false);
+    }
   });
 }
 

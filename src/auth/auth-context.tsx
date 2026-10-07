@@ -12,7 +12,9 @@ import {
   getGoogleClientId,
   initializeGoogleId,
   isAdminEmail,
+  loadRememberedProfile,
   loadStoredUser,
+  promptGoogleSignIn,
   signOutGoogle,
   storeUser,
   userFromIdToken,
@@ -39,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const pendingAction = useRef<(() => void) | null>(null);
+  const userRef = useRef<AuthUser | null>(null);
   const configured = Boolean(getGoogleClientId());
+
+  userRef.current = user;
 
   const applyCredential = useCallback((response: GoogleCredentialResponse) => {
     const next = userFromIdToken(response.credential);
@@ -53,22 +58,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setAuthTokenProvider(() => loadStoredUser()?.idToken ?? user?.idToken ?? null);
+    setAuthTokenProvider(() => loadStoredUser()?.idToken ?? userRef.current?.idToken ?? null);
   }, [user]);
 
   useEffect(() => {
-    const stored = loadStoredUser();
-    if (stored) setUser(stored);
+    let cancelled = false;
 
-    if (!configured) {
-      setReady(true);
-      return;
-    }
+    void (async () => {
+      const stored = loadStoredUser();
+      if (stored) {
+        setUser(stored);
+      }
 
-    initializeGoogleId(applyCredential)
-      .catch(() => undefined)
-      .finally(() => setReady(true));
+      if (!configured) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+
+      const remembered = loadRememberedProfile();
+      const shouldAutoSelect = Boolean(stored || remembered);
+
+      try {
+        await initializeGoogleId(applyCredential, { autoSelect: shouldAutoSelect });
+
+        // Token expired (or first return after tab close with stale JWT): silently refresh.
+        if (!stored && remembered) {
+          await promptGoogleSignIn();
+          if (!cancelled && !userRef.current) {
+            // One Tap may have completed via applyCredential already.
+            const refreshed = loadStoredUser();
+            if (refreshed) setUser(refreshed);
+          }
+        }
+      } catch {
+        // Sign-in library unavailable — keep any valid stored session.
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [applyCredential, configured]);
+
+  // Keep API tokens fresh while the tab stays open (Google ID tokens ~1h).
+  useEffect(() => {
+    if (!configured || !user) return;
+
+    const refresh = () => {
+      const current = loadStoredUser();
+      if (current) {
+        if (current.idToken !== userRef.current?.idToken) {
+          setUser(current);
+        }
+        return;
+      }
+      // Expired — try silent Google re-auth.
+      void initializeGoogleId(applyCredential, { autoSelect: true })
+        .then(() => promptGoogleSignIn())
+        .then(() => {
+          const next = loadStoredUser();
+          if (next) setUser(next);
+          else {
+            storeUser(null);
+            setUser(null);
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    const id = window.setInterval(refresh, 10 * 60 * 1000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [applyCredential, configured, user]);
 
   const signOut = useCallback(() => {
     signOutGoogle(user?.email);
@@ -83,7 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requireAuth = useCallback(
     (onAuthed?: () => void) => {
-      if (user) {
+      const live = loadStoredUser() ?? user;
+      if (live) {
+        if (live !== user) setUser(live);
         onAuthed?.();
         return;
       }
