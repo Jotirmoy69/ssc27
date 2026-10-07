@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
 
+import 'lenis/dist/lenis.css';
 import './index.css';
 
 /** VITE_GRAYSCALE=true (default) → B&W; false → color images. */

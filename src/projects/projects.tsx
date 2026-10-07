@@ -110,7 +110,17 @@ export function Projects() {
 
     if (!content || !wrapper) return;
 
-    const lenis = new Lenis({ wrapper, content, autoRaf: false });
+    const lenis = new Lenis({
+      wrapper: wrapper as HTMLElement,
+      content: content as HTMLElement,
+      autoRaf: false,
+      lerp: 0.085,
+      duration: 1.15,
+      smoothWheel: true,
+      syncTouch: true,
+      touchMultiplier: 1.35,
+      wheelMultiplier: 0.95,
+    });
     lenis.on('scroll', ScrollTrigger.update);
     const tickerFn = (time: number) => lenis.raf(time * 1000);
     gsap.ticker.add(tickerFn);

@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
+import { useSmoothScroll } from '../lib/smooth-scroll';
 import { AnimatedPlusIcon } from './animated-plus-icon';
 
 /** Cover: tighter list is fine (single file). */
@@ -100,12 +101,15 @@ function revokePreview(preview: string) {
 export function AlbumUpload(props: AlbumUploadProps) {
   const { mode, onClose } = props;
   const rootRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [person, setPerson] = useState('');
   const [cover, setCover] = useState<LocalFile | null>(null);
   const [photos, setPhotos] = useState<LocalFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+
+  useSmoothScroll(cardRef);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -229,7 +233,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
     >
-      <div className="album-upload__card">
+      <div ref={cardRef} className="album-upload__card">
         <span className="album-upload__handle" aria-hidden="true" />
         <header className="album-upload__header">
           <div>

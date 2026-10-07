@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
+import { useSmoothScroll } from '../lib/smooth-scroll';
 import { AnimatedPlusIcon } from './animated-plus-icon';
 
 export type AlbumEditPayload = {
@@ -33,12 +34,15 @@ async function uploadFile(file: File): Promise<string> {
 
 export function AlbumEdit({ albumName, coverUrl, onClose, onSave, onDelete }: AlbumEditProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [person, setPerson] = useState(albumName);
   const [coverPreview, setCoverPreview] = useState(coverUrl);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+
+  useSmoothScroll(cardRef);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -127,7 +131,7 @@ export function AlbumEdit({ albumName, coverUrl, onClose, onSave, onDelete }: Al
         if (event.target === event.currentTarget && !busy) onClose();
       }}
     >
-      <div className="album-upload__card">
+      <div ref={cardRef} className="album-upload__card">
         <span className="album-upload__handle" aria-hidden="true" />
         <header className="album-upload__header">
           <div>

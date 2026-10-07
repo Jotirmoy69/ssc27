@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
 import { canDeletePhoto, getUploaderDisplay, type PhotoEntry } from '../api/albums';
+import { useSmoothScroll } from '../lib/smooth-scroll';
 import {
   descriptionStorageKey,
   fetchSharedDescriptions,
@@ -142,8 +143,10 @@ export function AlbumViewer({
   const rootRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const previewCardRef = useRef<HTMLDivElement>(null);
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -155,6 +158,9 @@ export function AlbumViewer({
   const [saveError, setSaveError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  useSmoothScroll(contentRef);
+  useSmoothScroll(previewCardRef, { enabled: Boolean(preview) });
 
   useEffect(() => {
     let cancelled = false;
@@ -311,7 +317,7 @@ export function AlbumViewer({
     <div ref={rootRef} className="album-viewer" role="dialog" aria-modal="true" aria-label={`Images of ${project.person}`}>
       <div ref={coverRef} className="album-viewer__cover" style={{ backgroundImage: `url(${origin.image})` }} />
 
-      <div className="album-viewer__content">
+      <div ref={contentRef} className="album-viewer__content">
         <header ref={headerRef} className="album-viewer__header">
           <h1 className="album-viewer__title">Images of {project.person}</h1>
           <div className="album-viewer__actions">
@@ -380,7 +386,7 @@ export function AlbumViewer({
             if (event.target === event.currentTarget) setPreview(null);
           }}
         >
-          <div className="photo-preview__card">
+          <div ref={previewCardRef} className="photo-preview__card">
             <span className="photo-preview__handle" aria-hidden="true" />
             <button
               type="button"
@@ -393,7 +399,19 @@ export function AlbumViewer({
               </svg>
             </button>
             <div className="photo-preview__image">
-              <img src={preview.photo.url} alt={`${project.person} photo ${preview.index + 1}`} draggable={false} />
+              <img
+                className="photo-preview__image-blur"
+                src={preview.photo.url}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+              />
+              <img
+                className="photo-preview__image-full"
+                src={preview.photo.url}
+                alt={`${project.person} photo ${preview.index + 1}`}
+                draggable={false}
+              />
             </div>
             <div className="photo-preview__meta">
               {previewUploader ? (
