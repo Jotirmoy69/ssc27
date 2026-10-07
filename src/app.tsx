@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Agentation } from 'agentation';
 import { SquiCircleFilterStatic } from '@/components/ui/skiper-ui/skiper63';
 import PagePreloader from '@/components/ui/smoothui/page-preloader';
 import { AuthChip } from './auth/auth-chip';
