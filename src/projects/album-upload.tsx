@@ -7,7 +7,13 @@ import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../a
 import { imageUrl, uploadWebP } from '../api/school-memories';
 import { AnimatedPlusIcon } from './animated-plus-icon';
 
-const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.webp,.gif,.avif';
+/** Cover: tighter list is fine (single file). */
+const COVER_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.webp,.gif,.avif';
+/**
+ * Multi-select on iOS/Android often breaks with a long MIME/extension list.
+ * Use image/* so the Photos app allows tapping multiple; JS still rejects videos.
+ */
+const MULTI_IMAGE_ACCEPT = 'image/*';
 
 export type CreatedAlbumPayload = {
   person: string;
@@ -265,8 +271,8 @@ export function AlbumUpload(props: AlbumUploadProps) {
                 <label className={`album-upload__drop${cover ? ' has-file' : ''}`}>
                   <input
                     type="file"
-                    accept={IMAGE_ACCEPT}
-                    hidden
+                    accept={COVER_ACCEPT}
+                    className="album-upload__file-input"
                     disabled={busy}
                     onChange={(event) => {
                       pickCover(event.target.files);
@@ -288,15 +294,15 @@ export function AlbumUpload(props: AlbumUploadProps) {
             <section className="album-upload__section">
               <div className="album-upload__section-head">
                 <h3>Album images</h3>
-                <p>Select one or more photos, then Proceed to save them.</p>
+                <p>Select multiple photos at once, then Proceed to save them.</p>
               </div>
 
               <label className="album-upload__drop album-upload__drop--multi">
                 <input
                   type="file"
-                  accept={IMAGE_ACCEPT}
-                  multiple
-                  hidden
+                  accept={MULTI_IMAGE_ACCEPT}
+                  multiple={true}
+                  className="album-upload__file-input"
                   disabled={busy}
                   onChange={(event) => {
                     pickPhotos(event.target.files);
