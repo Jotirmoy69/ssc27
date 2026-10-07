@@ -44,18 +44,26 @@ function authHeaders(extra?: HeadersInit): Headers {
 }
 
 export function imageUrl(pathOrUrl: string): string {
+  if (!pathOrUrl) return '';
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://') || pathOrUrl.startsWith('data:')) {
     return pathOrUrl;
+  }
+  // Raw B2 object keys must go through the image proxy, not /photos/… on the Worker host.
+  if (pathOrUrl.startsWith('photos/')) {
+    return `${API_BASE}/api/image?key=${encodeURIComponent(pathOrUrl)}`;
   }
   return `${API_BASE}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
 }
 
-/** Extract B2 object key from an `/api/image?key=…` URL when possible. */
+/** Extract B2 object key from an `/api/image?key=…` URL or a raw `photos/…` key. */
 export function photoKeyFromUrl(url: string): string | null {
+  if (!url) return null;
+  if (url.startsWith('photos/') && !url.includes('..')) return url;
   try {
     const parsed = new URL(url, API_BASE);
     const key = parsed.searchParams.get('key');
-    return key || null;
+    if (key?.startsWith('photos/') && !key.includes('..')) return key;
+    return null;
   } catch {
     return null;
   }

@@ -150,13 +150,13 @@ export async function createSharedAlbum(input: {
   cover: string;
   createdBy?: PhotoOwner;
 }): Promise<StoredAlbum> {
-  const coverKey = photoKeyFromUrl(input.cover);
   const response = await apiFetch('/api/albums', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       person: input.person.trim() || 'Untitled',
-      cover: coverKey || input.cover,
+      // Send a full gallery URL (or key). Worker normalizes to /api/image?key=…
+      cover: input.cover,
     }),
   });
 
