@@ -24,6 +24,7 @@ type AlbumViewerProps = {
   origin: AlbumOrigin;
   onClose: () => void;
   onAddPhotos?: () => void;
+  onEditAlbum?: () => void;
   onDeletePhoto?: (photo: PhotoEntry) => void | Promise<void>;
   currentUserId?: string | null;
   isAdmin?: boolean;
@@ -132,6 +133,7 @@ export function AlbumViewer({
   origin,
   onClose,
   onAddPhotos,
+  onEditAlbum,
   onDeletePhoto,
   currentUserId = null,
   isAdmin = false,
@@ -312,12 +314,19 @@ export function AlbumViewer({
       <div className="album-viewer__content">
         <header ref={headerRef} className="album-viewer__header">
           <h1 className="album-viewer__title">Images of {project.person}</h1>
-          <button type="button" className="album-viewer__back" aria-label="Back">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M8.5 2.5 L4 7 L8.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>Back</span>
-          </button>
+          <div className="album-viewer__actions">
+            {onEditAlbum ? (
+              <button type="button" className="album-viewer__edit" onClick={onEditAlbum}>
+                Edit album
+              </button>
+            ) : null}
+            <button type="button" className="album-viewer__back" aria-label="Back">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M8.5 2.5 L4 7 L8.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Back</span>
+            </button>
+          </div>
         </header>
 
         <div ref={gridRef} className={`album-viewer__grid${ready ? ' is-ready' : ''}`}>

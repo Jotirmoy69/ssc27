@@ -10,15 +10,19 @@ import PagePreloader from '@/components/ui/smoothui/page-preloader';
 import {
   albumNumericId,
   appendPhotosToAlbum,
+  canManageAlbum,
   createSharedAlbum,
+  deleteSharedAlbum,
   fetchSharedAlbums,
   redactAlbumForViewer,
   removePhotoFromAlbum,
+  updateSharedAlbum,
   type PhotoEntry,
   type StoredAlbum,
 } from '../api/albums';
 import { preloadImageUrls } from '../api/preload-school-memories';
 import { useAuth } from '../auth/auth-context';
+import { AlbumEdit, type AlbumEditPayload } from './album-edit';
 import {
   AlbumUpload,
   type AddedPhotosPayload,
@@ -41,7 +45,8 @@ type OpenAlbum = {
 
 type UploadState =
   | { mode: 'create' }
-  | { mode: 'add'; albumId: string; albumName: string };
+  | { mode: 'add'; albumId: string; albumName: string }
+  | { mode: 'edit'; albumId: string; albumName: string; coverUrl: string };
 
 const STAIRS_COLUMNS = 6;
 const STAIRS_ENTER_MS = (0.55 + (STAIRS_COLUMNS - 1) * 0.06) * 1000;
@@ -56,6 +61,7 @@ function toProject(album: StoredAlbum, position: number): Project {
     person: album.person,
     image: album.cover,
     photos: album.photos,
+    createdById: album.createdBy?.id,
   };
 }
 
@@ -286,7 +292,43 @@ export function Projects() {
     setOpenAlbum((prev) => (prev ? { ...prev, project } : prev));
   };
 
+  const handleEditAlbum = async (payload: AlbumEditPayload) => {
+    if (!upload || upload.mode !== 'edit') return;
+    if (!user) throw new Error('Sign in required');
+
+    const updated = await updateSharedAlbum(upload.albumId, {
+      person: payload.person,
+      cover: payload.cover,
+    });
+    const project = toProject(
+      redactAlbumForViewer(updated, { isAdmin, currentUserId: user.id }),
+      projects.find((item) => item.albumId === updated.id)?.position ?? 1,
+    );
+    setProjects((prev) => prev.map((item) => (item.albumId === project.albumId ? project : item)));
+    setOpenAlbum((prev) =>
+      prev && prev.project.albumId === project.albumId
+        ? { ...prev, project, origin: { ...prev.origin, image: project.image } }
+        : prev,
+    );
+    setUpload(null);
+    if (payload.cover) await preloadImageUrls([payload.cover]).catch(() => undefined);
+  };
+
+  const handleDeleteAlbum = async () => {
+    if (!upload || upload.mode !== 'edit') return;
+    if (!user) throw new Error('Sign in required');
+
+    const albumId = upload.albumId;
+    await deleteSharedAlbum(albumId);
+    setUpload(null);
+    setOpenAlbum(null);
+    await syncAlbums(true);
+  };
+
   const overlayOpen = Boolean(openAlbum || upload || stairsActive);
+  const canEditOpenAlbum = Boolean(
+    openAlbum && canManageAlbum({ createdById: openAlbum.project.createdById }, user, isAdmin),
+  );
 
   return (
     <ProjectsWrapper>
@@ -307,6 +349,19 @@ export function Projects() {
           isAdmin={isAdmin}
           currentUserId={user?.id ?? null}
           onDeletePhoto={handleDeletePhoto}
+          onEditAlbum={
+            canEditOpenAlbum
+              ? () =>
+                  requireAuth(() =>
+                    setUpload({
+                      mode: 'edit',
+                      albumId: openAlbum.project.albumId,
+                      albumName: openAlbum.project.person,
+                      coverUrl: openAlbum.project.image,
+                    }),
+                  )
+              : undefined
+          }
           onAddPhotos={() =>
             requireAuth(() =>
               setUpload({
@@ -327,6 +382,15 @@ export function Projects() {
           albumName={upload.albumName}
           onClose={() => setUpload(null)}
           onComplete={handleAddPhotos}
+        />
+      ) : null}
+      {upload?.mode === 'edit' ? (
+        <AlbumEdit
+          albumName={upload.albumName}
+          coverUrl={upload.coverUrl}
+          onClose={() => setUpload(null)}
+          onSave={handleEditAlbum}
+          onDelete={handleDeleteAlbum}
         />
       ) : null}
       <PagePreloader

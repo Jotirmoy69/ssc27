@@ -476,7 +476,15 @@
   color: var(--black);
 }
 
-.album-viewer__back {
+.album-viewer__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.album-viewer__back,
+.album-viewer__edit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -492,7 +500,12 @@
   transition: background 0.25s ease;
 }
 
-.album-viewer__back:hover {
+.album-viewer__edit {
+  padding: 0 14px;
+}
+
+.album-viewer__back:hover,
+.album-viewer__edit:hover {
   background: #e6e6e6;
 }
 
@@ -1022,6 +1035,49 @@
 .album-upload__btn--ghost {
   color: var(--black);
   background: var(--light-grey);
+}
+
+.album-upload__btn--danger {
+  color: #fff;
+  background: #b42318;
+  margin-left: 0;
+}
+
+.album-upload__footer--edit {
+  justify-content: space-between;
+}
+
+.album-upload__footer--edit .album-upload__btn:not(.album-upload__btn--danger) {
+  margin-left: auto;
+}
+
+.album-upload__drop-label--overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.album-upload__drop.has-file {
+  position: relative;
+}
+
+.album-upload__drop.has-file:hover .album-upload__drop-label--overlay {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .album-upload__drop.has-file .album-upload__drop-label--overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.28);
+  }
 }
 
 /* Mobile-only affordances, hidden on desktop */

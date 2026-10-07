@@ -8,6 +8,8 @@ export type Project = {
   person: string;
   image: string;
   photos: PhotoEntry[];
+  /** Google subject of the album creator — used for owner edit/delete. */
+  createdById?: string;
 };
 
 export const projects: Project[] = [];

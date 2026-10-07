@@ -205,6 +205,56 @@ export async function appendPhotosToAlbum(
   return album;
 }
 
+export function canManageAlbum(
+  album: { createdById?: string | null; createdBy?: PhotoOwner | null },
+  user: { id: string } | null,
+  isAdmin: boolean,
+): boolean {
+  if (!user) return false;
+  if (isAdmin) return true;
+  const ownerId = album.createdById ?? album.createdBy?.id;
+  return Boolean(ownerId && ownerId === user.id);
+}
+
+export async function updateSharedAlbum(
+  albumId: string,
+  input: { person?: string; cover?: string },
+): Promise<StoredAlbum> {
+  const body: Record<string, string> = {};
+  if (input.person !== undefined) body.person = input.person.trim();
+  if (input.cover !== undefined) body.cover = input.cover;
+
+  const response = await apiFetch(`/api/albums/${encodeURIComponent(albumId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const result = (await response.json().catch(() => ({}))) as {
+    album?: RawStoredAlbum;
+    error?: string;
+  };
+  if (!response.ok) throw new Error(result.error || 'Could not update album');
+
+  const album = normalizeAlbum(result.album as RawStoredAlbum);
+  if (!album) throw new Error('Could not update album');
+
+  const albums = await fetchSharedAlbums(true).catch(() => [] as StoredAlbum[]);
+  cacheAlbums(albums.map((item) => (item.id === album.id ? album : item)));
+  return album;
+}
+
+export async function deleteSharedAlbum(albumId: string): Promise<void> {
+  const response = await apiFetch(`/api/albums/${encodeURIComponent(albumId)}`, {
+    method: 'DELETE',
+  });
+  const result = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) throw new Error(result.error || 'Could not delete album');
+
+  const albums = await fetchSharedAlbums(true).catch(() => [] as StoredAlbum[]);
+  cacheAlbums(albums.filter((item) => item.id !== albumId));
+}
+
 /** Remove a photo from the album and delete the B2 object (Worker-enforced ownership). */
 export async function removePhotoFromAlbum(albumId: string, photoUrl: string): Promise<StoredAlbum> {
   const key = photoKeyFromUrl(photoUrl);
