@@ -42,19 +42,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const pendingAction = useRef<(() => void) | null>(null);
   const userRef = useRef<AuthUser | null>(null);
+  const loginOpenRef = useRef(false);
   const configured = Boolean(getGoogleClientId());
 
   userRef.current = user;
+  loginOpenRef.current = loginOpen;
 
   const applyCredential = useCallback((response: GoogleCredentialResponse) => {
     const next = userFromIdToken(response.credential);
     if (!next) return;
+
+    const wasLoggedOut = !userRef.current;
+    const fromLoginUi = loginOpenRef.current;
+
     storeUser(next);
     setUser(next);
     setLoginOpen(false);
     const action = pendingAction.current;
     pendingAction.current = null;
     action?.();
+
+    // Full reload after a real sign-in so albums/admin state refresh cleanly.
+    // Skip when silently refreshing an already signed-in session.
+    if (wasLoggedOut || fromLoginUi) {
+      window.location.reload();
+    }
   }, []);
 
   useEffect(() => {
