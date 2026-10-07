@@ -34,8 +34,40 @@ function canvasToWebP(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
   });
 }
 
+const IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
+/** True for still images only — videos and other types are rejected. */
+export function isAllowedImageFile(file: File): boolean {
+  const type = (file.type || '').toLowerCase();
+  if (type.startsWith('video/')) return false;
+  if (type.startsWith('image/')) return IMAGE_TYPES.has(type) || type === 'image/jpg';
+  // Some phones omit MIME; fall back to extension.
+  const name = file.name.toLowerCase();
+  return /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(name);
+}
+
+export function assertAllowedImageFile(file: File): void {
+  const type = (file.type || '').toLowerCase();
+  if (type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(file.name)) {
+    throw new Error('Videos are not allowed. Upload a photo instead.');
+  }
+  if (!isAllowedImageFile(file)) {
+    throw new Error('Only image files are allowed (JPEG, PNG, WebP, GIF, AVIF).');
+  }
+}
+
 /** Resize + compress to WebP (<=1920px longest side, <=1MB) for the School Memories API. */
 export async function compressToWebP(file: File): Promise<Blob> {
+  assertAllowedImageFile(file);
   if (file.size > 20 * 1024 * 1024) {
     throw new Error('Image must be 20 MB or smaller');
   }

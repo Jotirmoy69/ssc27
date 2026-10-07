@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { motion, useReducedMotion } from 'motion/react';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
-import { compressToWebP } from '../api/compress-image';
+import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
 import { AnimatedPlusIcon } from './animated-plus-icon';
+
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.webp,.gif,.avif';
 
 export type CreatedAlbumPayload = {
   person: string;
@@ -119,6 +121,13 @@ export function AlbumUpload(props: AlbumUploadProps) {
   const pickCover = (files: FileList | null) => {
     if (!files?.length) return;
     const file = files[0];
+    try {
+      assertAllowedImageFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Only images are allowed');
+      setStatus('');
+      return;
+    }
     if (cover) revokePreview(cover.preview);
     setCover({
       id: crypto.randomUUID(),
@@ -131,13 +140,23 @@ export function AlbumUpload(props: AlbumUploadProps) {
 
   const pickPhotos = (files: FileList | null) => {
     if (!files?.length) return;
-    const next = Array.from(files).map((file) => ({
+    const selected = Array.from(files);
+    const images = selected.filter(isAllowedImageFile);
+    const rejected = selected.length - images.length;
+
+    if (!images.length) {
+      setError('Videos are not allowed. Upload photos only.');
+      setStatus('');
+      return;
+    }
+
+    const next = images.map((file) => ({
       id: crypto.randomUUID(),
       file,
       preview: URL.createObjectURL(file),
     }));
     setPhotos((prev) => [...prev, ...next]);
-    setError('');
+    setError(rejected > 0 ? `${rejected} video/unsupported file${rejected === 1 ? '' : 's'} skipped` : '');
     setStatus(`${next.length} image${next.length === 1 ? '' : 's'} ready`);
   };
 
@@ -235,7 +254,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
                 <label className={`album-upload__drop${cover ? ' has-file' : ''}`}>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={IMAGE_ACCEPT}
                     hidden
                     disabled={busy}
                     onChange={(event) => {
@@ -264,7 +283,7 @@ export function AlbumUpload(props: AlbumUploadProps) {
               <label className="album-upload__drop album-upload__drop--multi">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={IMAGE_ACCEPT}
                   multiple
                   hidden
                   disabled={busy}
