@@ -21,11 +21,38 @@ export type UploadResult = {
   error?: string;
 };
 
+type TokenProvider = () => string | null | undefined;
+
+let authTokenProvider: TokenProvider = () => null;
+
+/** Called by AuthProvider so uploads/deletes send the Google ID token. */
+export function setAuthTokenProvider(provider: TokenProvider): void {
+  authTokenProvider = provider;
+}
+
+function authHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  const token = authTokenProvider();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return headers;
+}
+
 export function imageUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://') || pathOrUrl.startsWith('data:')) {
     return pathOrUrl;
   }
   return `${API_BASE}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
+}
+
+/** Extract B2 object key from an `/api/image?key=…` URL when possible. */
+export function photoKeyFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url, API_BASE);
+    const key = parsed.searchParams.get('key');
+    return key || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function listImages(cursor?: string): Promise<ImagesPage> {
@@ -56,10 +83,26 @@ export async function uploadWebP(webpBlob: Blob, filename = 'memory.webp'): Prom
 
   const response = await fetch(`${API_BASE}/api/upload`, {
     method: 'POST',
+    headers: authHeaders(),
     body: form,
   });
 
   const result = (await response.json()) as UploadResult;
   if (!response.ok) throw new Error(result.error || 'Upload failed');
   return result;
+}
+
+/**
+ * Delete a photo object from B2.
+ * Requires a Google ID token; Worker must allow owner or admin.
+ */
+export async function deletePhoto(key: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/delete`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ key }),
+  });
+
+  const result = (await response.json().catch(() => ({}))) as { error?: string; deleted?: boolean };
+  if (!response.ok) throw new Error(result.error || 'Delete failed');
 }

@@ -12,9 +12,14 @@ import {
   appendPhotosToAlbum,
   createSharedAlbum,
   fetchSharedAlbums,
+  redactAlbumForViewer,
+  removePhotoFromAlbum,
+  type PhotoEntry,
   type StoredAlbum,
 } from '../api/albums';
 import { preloadImageUrls } from '../api/preload-school-memories';
+import { deletePhoto, photoKeyFromUrl } from '../api/school-memories';
+import { useAuth } from '../auth/auth-context';
 import {
   AlbumUpload,
   type AddedPhotosPayload,
@@ -56,6 +61,7 @@ function toProject(album: StoredAlbum, position: number): Project {
 }
 
 export function Projects() {
+  const { user, isAdmin, requireAuth } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [openAlbum, setOpenAlbum] = useState<OpenAlbum | null>(null);
   const [upload, setUpload] = useState<UploadState | null>(null);
@@ -64,7 +70,11 @@ export function Projects() {
 
   const syncAlbums = async (force = false) => {
     const albums = await fetchSharedAlbums(force);
-    setProjects(albums.map((album, index) => toProject(album, index + 1)));
+    setProjects(
+      albums
+        .map((album) => redactAlbumForViewer(album, { isAdmin }))
+        .map((album, index) => toProject(album, index + 1)),
+    );
   };
 
   useEffect(() => {
@@ -78,7 +88,7 @@ export function Projects() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin]);
 
   useGSAP(() => {
     const wrapper = document.querySelector('.wrapper');
@@ -217,7 +227,7 @@ export function Projects() {
 
     void runStairs(async () => {
       setOpenAlbum(nextAlbum);
-      await preloadImageUrls(project.photos).catch(() => undefined);
+      await preloadImageUrls(project.photos.map((photo) => photo.url)).catch(() => undefined);
     });
   };
 
@@ -228,7 +238,12 @@ export function Projects() {
   };
 
   const handleCreateAlbum = async (payload: CreatedAlbumPayload) => {
-    const album = await createSharedAlbum(payload);
+    if (!user) throw new Error('Sign in required');
+    const album = await createSharedAlbum({
+      person: payload.person,
+      cover: payload.cover,
+      createdBy: { id: user.id, email: user.email, name: user.name },
+    });
     await syncAlbums(true);
     setUpload(null);
     await preloadImageUrls([album.cover]).catch(() => undefined);
@@ -236,7 +251,17 @@ export function Projects() {
 
   const handleAddPhotos = async (payload: AddedPhotosPayload) => {
     if (!upload || upload.mode !== 'add') return;
-    const updated = await appendPhotosToAlbum(upload.albumId, payload.photos);
+    if (!user) throw new Error('Sign in required');
+
+    const entries: PhotoEntry[] = payload.photos.map((url) => ({
+      url,
+      ownerId: user.id,
+      ownerEmail: user.email,
+      ownerName: user.name,
+      uploadedAt: new Date().toISOString(),
+    }));
+
+    const updated = await appendPhotosToAlbum(upload.albumId, entries);
     const project = toProject(
       updated,
       projects.find((item) => item.albumId === updated.id)?.position ?? 1,
@@ -247,6 +272,26 @@ export function Projects() {
     await preloadImageUrls(payload.photos).catch(() => undefined);
   };
 
+  const handleDeletePhoto = async (photo: PhotoEntry) => {
+    if (!openAlbum) return;
+    if (!user) throw new Error('Sign in required');
+
+    const key = photoKeyFromUrl(photo.url);
+    if (key) {
+      try {
+        await deletePhoto(key);
+      } catch (error) {
+        // Album sidecar still updates so the UI stays consistent if Worker auth is mid-rollout.
+        console.warn(error);
+      }
+    }
+
+    const updated = await removePhotoFromAlbum(openAlbum.project.albumId, photo.url);
+    const project = toProject(updated, openAlbum.project.position);
+    setProjects((prev) => prev.map((item) => (item.albumId === project.albumId ? project : item)));
+    setOpenAlbum((prev) => (prev ? { ...prev, project } : prev));
+  };
+
   const overlayOpen = Boolean(openAlbum || upload || stairsActive);
 
   return (
@@ -254,7 +299,7 @@ export function Projects() {
       <ProjectsList
         projects={projects}
         onOpenAlbum={handleOpenAlbum}
-        onAddAlbum={() => setUpload({ mode: 'create' })}
+        onAddAlbum={() => requireAuth(() => setUpload({ mode: 'create' }))}
       />
       <div className={`switcher-slot${overlayOpen ? ' is-hidden' : ''}`}>
         <ProjectsSwitcher />
@@ -265,12 +310,17 @@ export function Projects() {
           origin={openAlbum.origin}
           transition="stairs"
           onClose={handleCloseAlbum}
+          isAdmin={isAdmin}
+          currentUserId={user?.id ?? null}
+          onDeletePhoto={handleDeletePhoto}
           onAddPhotos={() =>
-            setUpload({
-              mode: 'add',
-              albumId: openAlbum.project.albumId,
-              albumName: openAlbum.project.person,
-            })
+            requireAuth(() =>
+              setUpload({
+                mode: 'add',
+                albumId: openAlbum.project.albumId,
+                albumName: openAlbum.project.person,
+              }),
+            )
           }
         />
       ) : null}

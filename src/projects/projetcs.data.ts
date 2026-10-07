@@ -1,3 +1,5 @@
+import type { PhotoEntry } from '../api/albums';
+
 export type Project = {
   id: number;
   albumId: string;
@@ -5,7 +7,7 @@ export type Project = {
   name: string;
   person: string;
   image: string;
-  photos: string[];
+  photos: PhotoEntry[];
 };
 
 export const projects: Project[] = [];

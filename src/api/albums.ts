@@ -3,12 +3,32 @@ import { imageUrl, listAllImages, uploadWebP } from './school-memories';
 const MARKER = '\n<!--SMALBUMS-->';
 const STORE_FILENAME = 'sm-albums.webp';
 
+export type PhotoOwner = {
+  id: string;
+  email: string;
+  name?: string;
+};
+
+/** One photo inside an album. Legacy string URLs are normalized on read. */
+export type PhotoEntry = {
+  url: string;
+  ownerId: string;
+  ownerEmail: string;
+  ownerName?: string;
+  uploadedAt: string;
+};
+
 export type StoredAlbum = {
   id: string;
   person: string;
   cover: string;
-  photos: string[];
+  photos: PhotoEntry[];
   createdAt: string;
+  createdBy?: PhotoOwner;
+};
+
+type RawStoredAlbum = Omit<StoredAlbum, 'photos'> & {
+  photos?: Array<string | PhotoEntry>;
 };
 
 export function isAlbumStoreName(name: string): boolean {
@@ -17,6 +37,56 @@ export function isAlbumStoreName(name: string): boolean {
 
 export function isSidecarStoreName(name: string): boolean {
   return isAlbumStoreName(name) || name.includes('sm-descriptions.webp');
+}
+
+export function normalizePhoto(photo: string | PhotoEntry): PhotoEntry {
+  if (typeof photo === 'string') {
+    return {
+      url: photo,
+      ownerId: 'legacy',
+      ownerEmail: '',
+      uploadedAt: '',
+    };
+  }
+  return {
+    url: photo.url,
+    ownerId: photo.ownerId || 'legacy',
+    ownerEmail: photo.ownerEmail || '',
+    ownerName: photo.ownerName,
+    uploadedAt: photo.uploadedAt || '',
+  };
+}
+
+export function albumPhotoUrls(album: Pick<StoredAlbum, 'photos' | 'cover'>): string[] {
+  return [album.cover, ...album.photos.map((photo) => photo.url)].filter(Boolean);
+}
+
+function normalizeAlbum(raw: RawStoredAlbum): StoredAlbum | null {
+  if (!raw || typeof raw.id !== 'string') return null;
+  return {
+    id: raw.id,
+    person: raw.person,
+    cover: raw.cover,
+    createdAt: raw.createdAt,
+    createdBy: raw.createdBy,
+    photos: Array.isArray(raw.photos) ? raw.photos.map(normalizePhoto) : [],
+  };
+}
+
+/** Strip uploader identity for non-admin clients (UI safety; Worker should also enforce). */
+export function redactAlbumForViewer(album: StoredAlbum, opts: { isAdmin: boolean }): StoredAlbum {
+  if (opts.isAdmin) return album;
+  return {
+    ...album,
+    createdBy: album.createdBy
+      ? { id: album.createdBy.id, email: '', name: undefined }
+      : undefined,
+    photos: album.photos.map((photo) => ({
+      ...photo,
+      ownerEmail: '',
+      ownerName: undefined,
+    })),
+  };
 }
 
 async function tinyWebP(): Promise<Blob> {
@@ -39,8 +109,9 @@ function parseAlbumsFromBytes(buffer: ArrayBuffer): StoredAlbum[] {
   if (index === -1) return [];
 
   try {
-    const parsed = JSON.parse(text.slice(index + MARKER.length)) as StoredAlbum[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item.id === 'string') : [];
+    const parsed = JSON.parse(text.slice(index + MARKER.length)) as RawStoredAlbum[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAlbum).filter((item): item is StoredAlbum => Boolean(item));
   } catch {
     return [];
   }
@@ -77,6 +148,7 @@ export async function persistSharedAlbums(albums: StoredAlbum[]): Promise<void> 
 export async function createSharedAlbum(input: {
   person: string;
   cover: string;
+  createdBy: PhotoOwner;
 }): Promise<StoredAlbum> {
   const albums = await fetchSharedAlbums(true);
   const next: StoredAlbum = {
@@ -85,21 +157,42 @@ export async function createSharedAlbum(input: {
     cover: input.cover,
     photos: [],
     createdAt: new Date().toISOString(),
+    createdBy: input.createdBy,
   };
   const updated = [next, ...albums];
   await persistSharedAlbums(updated);
   return next;
 }
 
-export async function appendPhotosToAlbum(albumId: string, photoUrls: string[]): Promise<StoredAlbum> {
+export async function appendPhotosToAlbum(
+  albumId: string,
+  photos: PhotoEntry[],
+): Promise<StoredAlbum> {
   const albums = await fetchSharedAlbums(true);
   const index = albums.findIndex((album) => album.id === albumId);
   if (index === -1) throw new Error('Album not found');
 
-  const unique = photoUrls.filter((url) => !albums[index].photos.includes(url));
+  const existingUrls = new Set(albums[index].photos.map((photo) => photo.url));
+  const unique = photos.filter((photo) => !existingUrls.has(photo.url));
   const updatedAlbum: StoredAlbum = {
     ...albums[index],
     photos: [...albums[index].photos, ...unique],
+  };
+  const updated = [...albums];
+  updated[index] = updatedAlbum;
+  await persistSharedAlbums(updated);
+  return updatedAlbum;
+}
+
+/** Remove a photo from the album sidecar (does not delete the B2 object by itself). */
+export async function removePhotoFromAlbum(albumId: string, photoUrl: string): Promise<StoredAlbum> {
+  const albums = await fetchSharedAlbums(true);
+  const index = albums.findIndex((album) => album.id === albumId);
+  if (index === -1) throw new Error('Album not found');
+
+  const updatedAlbum: StoredAlbum = {
+    ...albums[index],
+    photos: albums[index].photos.filter((photo) => photo.url !== photoUrl),
   };
   const updated = [...albums];
   updated[index] = updatedAlbum;
@@ -114,4 +207,15 @@ export function albumNumericId(id: string): number {
     hash = (hash * 31 + id.charCodeAt(i)) | 0;
   }
   return hash === 0 ? 1 : Math.abs(hash);
+}
+
+export function canDeletePhoto(
+  photo: PhotoEntry,
+  user: { id: string } | null,
+  isAdmin: boolean,
+): boolean {
+  if (!user) return false;
+  if (isAdmin) return true;
+  if (!photo.ownerId || photo.ownerId === 'legacy') return false;
+  return photo.ownerId === user.id;
 }

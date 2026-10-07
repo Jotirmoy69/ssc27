@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
+import { canDeletePhoto, type PhotoEntry } from '../api/albums';
 import {
   descriptionStorageKey,
   fetchSharedDescriptions,
@@ -23,12 +24,15 @@ type AlbumViewerProps = {
   origin: AlbumOrigin;
   onClose: () => void;
   onAddPhotos?: () => void;
+  onDeletePhoto?: (photo: PhotoEntry) => void | Promise<void>;
+  currentUserId?: string | null;
+  isAdmin?: boolean;
   /** `stairs` skips the thumbnail expand and reveals fullscreen under the curtain. */
   transition?: 'expand' | 'stairs';
 };
 
 type PreviewPhoto = {
-  src: string;
+  photo: PhotoEntry;
   index: number;
 };
 
@@ -128,6 +132,9 @@ export function AlbumViewer({
   origin,
   onClose,
   onAddPhotos,
+  onDeletePhoto,
+  currentUserId = null,
+  isAdmin = false,
   transition = 'expand',
 }: AlbumViewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -144,6 +151,8 @@ export function AlbumViewer({
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
   const [savingDescription, setSavingDescription] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -288,7 +297,14 @@ export function AlbumViewer({
     gsap.fromTo(card, { opacity: 0, scale: 0.94, y: 16 }, { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'power3.out' });
   }, [preview]);
 
-  const previewKey = preview ? descriptionStorageKey(preview.src) : '';
+  const previewKey = preview ? descriptionStorageKey(preview.photo.url) : '';
+  const previewUser = currentUserId ? { id: currentUserId } : null;
+  const canDeletePreview =
+    preview && onDeletePhoto ? canDeletePhoto(preview.photo, previewUser, isAdmin) : false;
+  const uploaderLabel =
+    isAdmin && preview
+      ? preview.photo.ownerName || preview.photo.ownerEmail || (preview.photo.ownerId === 'legacy' ? 'Unknown (legacy)' : '')
+      : '';
 
   return createPortal(
     <div ref={rootRef} className="album-viewer" role="dialog" aria-modal="true" aria-label={`Images of ${project.person}`}>
@@ -306,15 +322,18 @@ export function AlbumViewer({
         </header>
 
         <div ref={gridRef} className={`album-viewer__grid${ready ? ' is-ready' : ''}`}>
-          {project.photos.map((src, index) => (
+          {project.photos.map((photo, index) => (
             <button
-              key={`${project.id}-${src}-${index}`}
+              key={`${project.id}-${photo.url}-${index}`}
               type="button"
               className="album-viewer__cell"
               disabled={!ready}
-              onClick={() => setPreview({ src, index })}
+              onClick={() => {
+                setDeleteError('');
+                setPreview({ photo, index });
+              }}
             >
-              <img src={src} alt={`${project.person} photo ${index + 1}`} draggable={false} />
+              <img src={photo.url} alt={`${project.person} photo ${index + 1}`} draggable={false} />
             </button>
           ))}
           {onAddPhotos ? (
@@ -355,7 +374,7 @@ export function AlbumViewer({
               </svg>
             </button>
             <div className="photo-preview__image">
-              <img src={preview.src} alt={`${project.person} photo ${preview.index + 1}`} draggable={false} />
+              <img src={preview.photo.url} alt={`${project.person} photo ${preview.index + 1}`} draggable={false} />
             </div>
             <div className="photo-preview__meta">
               <h2 className="photo-preview__heading">Description</h2>
@@ -394,6 +413,31 @@ export function AlbumViewer({
                 }}
               />
               {saveError ? <p className="photo-preview__save-error">{saveError}</p> : null}
+              {uploaderLabel ? (
+                <p className="photo-preview__uploader">Uploaded by {uploaderLabel}</p>
+              ) : null}
+              {canDeletePreview ? (
+                <button
+                  type="button"
+                  className="photo-preview__delete"
+                  disabled={deleting}
+                  onClick={() => {
+                    if (!onDeletePhoto || !preview) return;
+                    if (!window.confirm('Delete this photo permanently?')) return;
+                    setDeleting(true);
+                    setDeleteError('');
+                    void Promise.resolve(onDeletePhoto(preview.photo))
+                      .then(() => setPreview(null))
+                      .catch((error) => {
+                        setDeleteError(error instanceof Error ? error.message : 'Could not delete photo');
+                      })
+                      .finally(() => setDeleting(false));
+                  }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete photo'}
+                </button>
+              ) : null}
+              {deleteError ? <p className="photo-preview__save-error">{deleteError}</p> : null}
             </div>
           </div>
         </div>

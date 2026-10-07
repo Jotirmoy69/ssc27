@@ -668,6 +668,31 @@
   color: #b42318;
 }
 
+.photo-preview__uploader {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.photo-preview__delete {
+  margin-top: 16px;
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #b42318;
+  touch-action: manipulation;
+}
+
+.photo-preview__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1100px) {
   .album-viewer__grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));

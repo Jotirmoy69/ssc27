@@ -1,4 +1,4 @@
-import { isSidecarStoreName, fetchSharedAlbums } from './albums';
+import { albumPhotoUrls, isSidecarStoreName, fetchSharedAlbums } from './albums';
 import { imageUrl, listAllImages } from './school-memories';
 
 let cachedUrls: Promise<string[]> | null = null;
@@ -29,9 +29,7 @@ export function preloadImageUrls(urls: string[]): Promise<void> {
 /** Fetch album covers/photos and warm them into the browser cache. */
 export async function preloadSchoolMemories(): Promise<string[]> {
   const albums = await fetchSharedAlbums(true).catch(() => []);
-  const urls = Array.from(
-    new Set(albums.flatMap((album) => [album.cover, ...album.photos].filter(Boolean))),
-  );
+  const urls = Array.from(new Set(albums.flatMap((album) => albumPhotoUrls(album))));
   cachedUrls = Promise.resolve(urls);
   await preloadImageUrls(urls);
   return urls;
