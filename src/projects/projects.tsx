@@ -18,7 +18,6 @@ import {
   type StoredAlbum,
 } from '../api/albums';
 import { preloadImageUrls } from '../api/preload-school-memories';
-import { deletePhoto, photoKeyFromUrl } from '../api/school-memories';
 import { useAuth } from '../auth/auth-context';
 import {
   AlbumUpload,
@@ -262,15 +261,8 @@ export function Projects() {
     if (!upload || upload.mode !== 'add') return;
     if (!user) throw new Error('Sign in required');
 
-    const entries: PhotoEntry[] = payload.photos.map((url) => ({
-      url,
-      ownerId: user.id,
-      ownerEmail: user.email,
-      ownerName: user.name,
-      uploadedAt: new Date().toISOString(),
-    }));
-
-    const updated = await appendPhotosToAlbum(upload.albumId, entries);
+    // Worker stamps ownership from the Google token.
+    const updated = await appendPhotosToAlbum(upload.albumId, payload.photos);
     const project = toProject(
       redactAlbumForViewer(updated, { isAdmin, currentUserId: user.id }),
       projects.find((item) => item.albumId === updated.id)?.position ?? 1,
@@ -284,16 +276,6 @@ export function Projects() {
   const handleDeletePhoto = async (photo: PhotoEntry) => {
     if (!openAlbum) return;
     if (!user) throw new Error('Sign in required');
-
-    const key = photoKeyFromUrl(photo.url);
-    if (key) {
-      try {
-        await deletePhoto(key);
-      } catch (error) {
-        // Album sidecar still updates so the UI stays consistent if Worker auth is mid-rollout.
-        console.warn(error);
-      }
-    }
 
     const updated = await removePhotoFromAlbum(openAlbum.project.albumId, photo.url);
     const project = toProject(

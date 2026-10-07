@@ -18,6 +18,8 @@ export type UploadResult = {
   name?: string;
   size?: number;
   url?: string;
+  ownerId?: string;
+  ownerEmail?: string;
   error?: string;
 };
 
@@ -28,6 +30,10 @@ let authTokenProvider: TokenProvider = () => null;
 /** Called by AuthProvider so uploads/deletes send the Google ID token. */
 export function setAuthTokenProvider(provider: TokenProvider): void {
   authTokenProvider = provider;
+}
+
+export function getAuthToken(): string | null {
+  return authTokenProvider() ?? null;
 }
 
 function authHeaders(extra?: HeadersInit): Headers {
@@ -53,6 +59,14 @@ export function photoKeyFromUrl(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = authHeaders(init.headers);
+  return fetch(`${API_BASE}${path.startsWith('/') ? path : `/${path}`}`, {
+    ...init,
+    headers,
+  });
 }
 
 export async function listImages(cursor?: string): Promise<ImagesPage> {

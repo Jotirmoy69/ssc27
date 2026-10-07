@@ -1,7 +1,4 @@
-import { imageUrl, listAllImages, uploadWebP } from './school-memories';
-
-const MARKER = '\n<!--SMALBUMS-->';
-const STORE_FILENAME = 'sm-albums.webp';
+import { apiFetch, imageUrl, photoKeyFromUrl } from './school-memories';
 
 export type PhotoOwner = {
   id: string;
@@ -27,7 +24,8 @@ export type StoredAlbum = {
   createdBy?: PhotoOwner;
 };
 
-type RawStoredAlbum = Omit<StoredAlbum, 'photos'> & {
+type RawStoredAlbum = Omit<StoredAlbum, 'photos' | 'cover'> & {
+  cover?: string;
   photos?: Array<string | PhotoEntry>;
 };
 
@@ -42,14 +40,14 @@ export function isSidecarStoreName(name: string): boolean {
 export function normalizePhoto(photo: string | PhotoEntry): PhotoEntry {
   if (typeof photo === 'string') {
     return {
-      url: photo,
+      url: imageUrl(photo),
       ownerId: 'legacy',
       ownerEmail: '',
       uploadedAt: '',
     };
   }
   return {
-    url: photo.url,
+    url: imageUrl(photo.url),
     ownerId: photo.ownerId || 'legacy',
     ownerEmail: photo.ownerEmail || '',
     ownerName: photo.ownerName,
@@ -66,7 +64,7 @@ function normalizeAlbum(raw: RawStoredAlbum): StoredAlbum | null {
   return {
     id: raw.id,
     person: raw.person,
-    cover: raw.cover,
+    cover: imageUrl(raw.cover || ''),
     createdAt: raw.createdAt,
     createdBy: raw.createdBy,
     photos: Array.isArray(raw.photos) ? raw.photos.map(normalizePhoto) : [],
@@ -126,115 +124,99 @@ export function getUploaderDisplay(
   return null;
 }
 
-async function tinyWebP(): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas unavailable');
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 1, 1);
-
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.8));
-  if (!blob) throw new Error('Could not create album store');
-  return blob;
-}
-
-function parseAlbumsFromBytes(buffer: ArrayBuffer): StoredAlbum[] {
-  const text = new TextDecoder().decode(buffer);
-  const index = text.lastIndexOf(MARKER);
-  if (index === -1) return [];
-
-  try {
-    const parsed = JSON.parse(text.slice(index + MARKER.length)) as RawStoredAlbum[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeAlbum).filter((item): item is StoredAlbum => Boolean(item));
-  } catch {
-    return [];
-  }
-}
-
 let cachedAlbums: Promise<StoredAlbum[]> | null = null;
 
 export function fetchSharedAlbums(force = false): Promise<StoredAlbum[]> {
   if (!cachedAlbums || force) {
     cachedAlbums = (async () => {
-      const items = await listAllImages();
-      const stores = items
-        .filter((item) => isAlbumStoreName(item.name))
-        .sort((a, b) => b.modified.localeCompare(a.modified));
-
-      if (!stores.length) return [];
-
-      const response = await fetch(imageUrl(stores[0].url));
-      if (!response.ok) throw new Error('Could not load albums');
-      return parseAlbumsFromBytes(await response.arrayBuffer());
+      // Worker owns the album sidecar now — sidecars are hidden from /api/images.
+      const response = await apiFetch('/api/albums');
+      if (!response.ok) {
+        const result = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(result.error || 'Could not load albums');
+      }
+      const data = (await response.json()) as { albums?: RawStoredAlbum[] };
+      const albums = Array.isArray(data.albums) ? data.albums : [];
+      return albums.map(normalizeAlbum).filter((item): item is StoredAlbum => Boolean(item));
     })();
   }
   return cachedAlbums;
 }
 
-export async function persistSharedAlbums(albums: StoredAlbum[]): Promise<void> {
-  const base = await tinyWebP();
-  const payload = new TextEncoder().encode(MARKER + JSON.stringify(albums));
-  const combined = new Blob([base, payload], { type: 'image/webp' });
-  await uploadWebP(combined, STORE_FILENAME);
+function cacheAlbums(albums: StoredAlbum[]): void {
   cachedAlbums = Promise.resolve(albums);
 }
 
 export async function createSharedAlbum(input: {
   person: string;
   cover: string;
-  createdBy: PhotoOwner;
+  createdBy?: PhotoOwner;
 }): Promise<StoredAlbum> {
-  const albums = await fetchSharedAlbums(true);
-  const next: StoredAlbum = {
-    id: crypto.randomUUID(),
-    person: input.person.trim() || 'Untitled',
-    cover: input.cover,
-    photos: [],
-    createdAt: new Date().toISOString(),
-    createdBy: input.createdBy,
+  const response = await apiFetch('/api/albums', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      person: input.person.trim() || 'Untitled',
+      cover: input.cover,
+    }),
+  });
+
+  const result = (await response.json().catch(() => ({}))) as {
+    album?: RawStoredAlbum;
+    error?: string;
   };
-  const updated = [next, ...albums];
-  await persistSharedAlbums(updated);
-  return next;
+  if (!response.ok) throw new Error(result.error || 'Could not create album');
+
+  const album = normalizeAlbum(result.album as RawStoredAlbum);
+  if (!album) throw new Error('Could not create album');
+
+  const albums = await fetchSharedAlbums(true).catch(() => [] as StoredAlbum[]);
+  cacheAlbums([album, ...albums.filter((item) => item.id !== album.id)]);
+  return album;
 }
 
 export async function appendPhotosToAlbum(
   albumId: string,
-  photos: PhotoEntry[],
+  photos: PhotoEntry[] | string[],
 ): Promise<StoredAlbum> {
-  const albums = await fetchSharedAlbums(true);
-  const index = albums.findIndex((album) => album.id === albumId);
-  if (index === -1) throw new Error('Album not found');
+  const urls = photos.map((photo) => (typeof photo === 'string' ? photo : photo.url));
 
-  const existingUrls = new Set(albums[index].photos.map((photo) => photo.url));
-  const unique = photos.filter((photo) => !existingUrls.has(photo.url));
-  const updatedAlbum: StoredAlbum = {
-    ...albums[index],
-    photos: [...albums[index].photos, ...unique],
+  const response = await apiFetch(`/api/albums/${encodeURIComponent(albumId)}/photos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ photos: urls }),
+  });
+
+  const result = (await response.json().catch(() => ({}))) as {
+    album?: RawStoredAlbum;
+    error?: string;
   };
-  const updated = [...albums];
-  updated[index] = updatedAlbum;
-  await persistSharedAlbums(updated);
-  return updatedAlbum;
+  if (!response.ok) throw new Error(result.error || 'Could not add photos');
+
+  const album = normalizeAlbum(result.album as RawStoredAlbum);
+  if (!album) throw new Error('Could not add photos');
+
+  const albums = await fetchSharedAlbums(true).catch(() => [] as StoredAlbum[]);
+  cacheAlbums(albums.map((item) => (item.id === album.id ? album : item)));
+  return album;
 }
 
-/** Remove a photo from the album sidecar (does not delete the B2 object by itself). */
+/** Remove a photo from the album and delete the B2 object (Worker-enforced ownership). */
 export async function removePhotoFromAlbum(albumId: string, photoUrl: string): Promise<StoredAlbum> {
-  const albums = await fetchSharedAlbums(true);
-  const index = albums.findIndex((album) => album.id === albumId);
-  if (index === -1) throw new Error('Album not found');
+  const key = photoKeyFromUrl(photoUrl);
+  const response = await apiFetch(`/api/albums/${encodeURIComponent(albumId)}/photos`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(key ? { key } : { url: photoUrl }),
+  });
 
-  const updatedAlbum: StoredAlbum = {
-    ...albums[index],
-    photos: albums[index].photos.filter((photo) => photo.url !== photoUrl),
-  };
-  const updated = [...albums];
-  updated[index] = updatedAlbum;
-  await persistSharedAlbums(updated);
-  return updatedAlbum;
+  const result = (await response.json().catch(() => ({}))) as { error?: string; deleted?: boolean };
+  if (!response.ok) throw new Error(result.error || 'Could not delete photo');
+
+  const albums = await fetchSharedAlbums(true);
+  const album = albums.find((item) => item.id === albumId);
+  if (!album) throw new Error('Album not found');
+  return album;
 }
 
 /** Stable numeric id for UI keys from a UUID-like string. */

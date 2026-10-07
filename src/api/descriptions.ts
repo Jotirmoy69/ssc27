@@ -1,7 +1,9 @@
-import { imageUrl, listAllImages, uploadWebP } from './school-memories';
+import { imageUrl, uploadWebP } from './school-memories';
 
 const MARKER = '\n<!--SMDESC-->';
 const STORE_FILENAME = 'sm-descriptions.webp';
+/** Stable key used when the Worker writes a fixed sidecar path. */
+const STORE_KEY = 'photos/sm-descriptions.webp';
 
 export function isDescriptionStoreName(name: string): boolean {
   return name.includes('sm-descriptions.webp');
@@ -47,16 +49,12 @@ function parseDescriptionsFromBytes(buffer: ArrayBuffer): Record<string, string>
 }
 
 export async function fetchSharedDescriptions(): Promise<Record<string, string>> {
-  const items = await listAllImages();
-  const stores = items
-    .filter((item) => isDescriptionStoreName(item.name))
-    .sort((a, b) => b.modified.localeCompare(a.modified));
-
-  if (!stores.length) return {};
-
-  const response = await fetch(imageUrl(stores[0].url));
-  if (!response.ok) throw new Error('Could not load descriptions');
-  return parseDescriptionsFromBytes(await response.arrayBuffer());
+  // Prefer the fixed sidecar key (new Worker hides sidecars from /api/images).
+  const direct = await fetch(imageUrl(`/api/image?key=${encodeURIComponent(STORE_KEY)}`));
+  if (direct.ok) {
+    return parseDescriptionsFromBytes(await direct.arrayBuffer());
+  }
+  return {};
 }
 
 export async function persistSharedDescriptions(map: Record<string, string>): Promise<void> {
