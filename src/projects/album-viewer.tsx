@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
-import { canDeletePhoto, type PhotoEntry } from '../api/albums';
+import { canDeletePhoto, getUploaderDisplay, type PhotoEntry } from '../api/albums';
 import {
   descriptionStorageKey,
   fetchSharedDescriptions,
@@ -301,16 +301,9 @@ export function AlbumViewer({
   const previewUser = currentUserId ? { id: currentUserId } : null;
   const canDeletePreview =
     preview && onDeletePhoto ? canDeletePhoto(preview.photo, previewUser, isAdmin) : false;
-  const uploaderLabel = (() => {
-    if (!isAdmin || !preview) return '';
-    const { ownerEmail, ownerName, ownerId } = preview.photo;
-    if (ownerEmail) {
-      return ownerName ? `${ownerEmail} (${ownerName})` : ownerEmail;
-    }
-    if (ownerName) return ownerName;
-    if (ownerId === 'legacy') return 'Unknown (legacy)';
-    return ownerId ? `User ${ownerId.slice(0, 8)}…` : '';
-  })();
+  const previewUploader = preview
+    ? getUploaderDisplay(preview.photo, { isAdmin, currentUserId })
+    : null;
 
   return createPortal(
     <div ref={rootRef} className="album-viewer" role="dialog" aria-modal="true" aria-label={`Images of ${project.person}`}>
@@ -328,20 +321,31 @@ export function AlbumViewer({
         </header>
 
         <div ref={gridRef} className={`album-viewer__grid${ready ? ' is-ready' : ''}`}>
-          {project.photos.map((photo, index) => (
-            <button
-              key={`${project.id}-${photo.url}-${index}`}
-              type="button"
-              className="album-viewer__cell"
-              disabled={!ready}
-              onClick={() => {
-                setDeleteError('');
-                setPreview({ photo, index });
-              }}
-            >
-              <img src={photo.url} alt={`${project.person} photo ${index + 1}`} draggable={false} />
-            </button>
-          ))}
+          {project.photos.map((photo, index) => {
+            const uploader = getUploaderDisplay(photo, { isAdmin, currentUserId });
+            return (
+              <button
+                key={`${project.id}-${photo.url}-${index}`}
+                type="button"
+                className={`album-viewer__cell${uploader ? ' album-viewer__cell--credited' : ''}`}
+                disabled={!ready}
+                onClick={() => {
+                  setDeleteError('');
+                  setPreview({ photo, index });
+                }}
+              >
+                <img src={photo.url} alt={`${project.person} photo ${index + 1}`} draggable={false} />
+                {uploader ? (
+                  <span
+                    className={`album-viewer__credit album-viewer__credit--${uploader.kind}`}
+                    title={uploader.kind === 'admin' ? uploader.label : 'Uploaded by you'}
+                  >
+                    {uploader.label}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
           {onAddPhotos ? (
             <button
               type="button"
@@ -383,6 +387,12 @@ export function AlbumViewer({
               <img src={preview.photo.url} alt={`${project.person} photo ${preview.index + 1}`} draggable={false} />
             </div>
             <div className="photo-preview__meta">
+              {previewUploader ? (
+                <div className={`photo-preview__uploader photo-preview__uploader--${previewUploader.kind}`}>
+                  <span className="photo-preview__uploader-label">Uploaded by</span>
+                  <span className="photo-preview__uploader-value">{previewUploader.label}</span>
+                </div>
+              ) : null}
               <h2 className="photo-preview__heading">Description</h2>
               <EditableDescription
                 value={descriptions[previewKey] ?? ''}
@@ -419,9 +429,6 @@ export function AlbumViewer({
                 }}
               />
               {saveError ? <p className="photo-preview__save-error">{saveError}</p> : null}
-              {uploaderLabel ? (
-                <p className="photo-preview__uploader">Uploaded by {uploaderLabel}</p>
-              ) : null}
               {canDeletePreview ? (
                 <button
                   type="button"

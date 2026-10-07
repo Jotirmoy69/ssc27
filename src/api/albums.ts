@@ -73,20 +73,57 @@ function normalizeAlbum(raw: RawStoredAlbum): StoredAlbum | null {
   };
 }
 
-/** Strip uploader identity for non-admin clients (UI safety; Worker should also enforce). */
-export function redactAlbumForViewer(album: StoredAlbum, opts: { isAdmin: boolean }): StoredAlbum {
+/**
+ * Strip uploader identity for other people.
+ * - Admin: full email/name on every photo
+ * - Owner: keeps their own fields (UI can show “You”)
+ * - Everyone else: no email/name
+ */
+export function redactAlbumForViewer(
+  album: StoredAlbum,
+  opts: { isAdmin: boolean; currentUserId?: string | null },
+): StoredAlbum {
   if (opts.isAdmin) return album;
+
+  const selfId = opts.currentUserId || null;
   return {
     ...album,
     createdBy: album.createdBy
-      ? { id: album.createdBy.id, email: '', name: undefined }
+      ? selfId && album.createdBy.id === selfId
+        ? album.createdBy
+        : { id: album.createdBy.id, email: '', name: undefined }
       : undefined,
-    photos: album.photos.map((photo) => ({
-      ...photo,
-      ownerEmail: '',
-      ownerName: undefined,
-    })),
+    photos: album.photos.map((photo) => {
+      if (selfId && photo.ownerId === selfId) return photo;
+      return {
+        ...photo,
+        ownerEmail: '',
+        ownerName: undefined,
+      };
+    }),
   };
+}
+
+/** Visible uploader label: admin sees identity, owner sees “You”, others see nothing. */
+export function getUploaderDisplay(
+  photo: PhotoEntry,
+  opts: { isAdmin: boolean; currentUserId?: string | null },
+): { kind: 'admin' | 'self'; label: string } | null {
+  const isSelf = Boolean(opts.currentUserId && photo.ownerId === opts.currentUserId);
+
+  if (opts.isAdmin) {
+    const email = photo.ownerEmail?.trim();
+    const name = photo.ownerName?.trim();
+    if (email && name) return { kind: 'admin', label: isSelf ? `${email} (you)` : `${email} · ${name}` };
+    if (email) return { kind: 'admin', label: isSelf ? `${email} (you)` : email };
+    if (name) return { kind: 'admin', label: isSelf ? `${name} (you)` : name };
+    if (photo.ownerId === 'legacy') return { kind: 'admin', label: 'Unknown (legacy)' };
+    if (isSelf) return { kind: 'admin', label: 'You' };
+    return photo.ownerId ? { kind: 'admin', label: `User ${photo.ownerId.slice(0, 8)}…` } : null;
+  }
+
+  if (isSelf) return { kind: 'self', label: 'You' };
+  return null;
 }
 
 async function tinyWebP(): Promise<Blob> {

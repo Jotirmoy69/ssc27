@@ -72,7 +72,7 @@ export function Projects() {
     const albums = await fetchSharedAlbums(force);
     setProjects(
       albums
-        .map((album) => redactAlbumForViewer(album, { isAdmin }))
+        .map((album) => redactAlbumForViewer(album, { isAdmin, currentUserId: user?.id ?? null }))
         .map((album, index) => toProject(album, index + 1)),
     );
   };
@@ -88,7 +88,7 @@ export function Projects() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin]);
+  }, [isAdmin, user?.id]);
 
   // Keep the open album in sync when admin status / ownership fields refresh.
   useEffect(() => {
@@ -272,7 +272,7 @@ export function Projects() {
 
     const updated = await appendPhotosToAlbum(upload.albumId, entries);
     const project = toProject(
-      updated,
+      redactAlbumForViewer(updated, { isAdmin, currentUserId: user.id }),
       projects.find((item) => item.albumId === updated.id)?.position ?? 1,
     );
     setProjects((prev) => prev.map((item) => (item.albumId === project.albumId ? project : item)));
@@ -296,7 +296,10 @@ export function Projects() {
     }
 
     const updated = await removePhotoFromAlbum(openAlbum.project.albumId, photo.url);
-    const project = toProject(updated, openAlbum.project.position);
+    const project = toProject(
+      redactAlbumForViewer(updated, { isAdmin, currentUserId: user.id }),
+      openAlbum.project.position,
+    );
     setProjects((prev) => prev.map((item) => (item.albumId === project.albumId ? project : item)));
     setOpenAlbum((prev) => (prev ? { ...prev, project } : prev));
   };

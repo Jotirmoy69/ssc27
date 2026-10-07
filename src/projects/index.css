@@ -509,6 +509,7 @@
 }
 
 .album-viewer__cell {
+  position: relative;
   aspect-ratio: 1;
   overflow: hidden;
   padding: 0;
@@ -519,6 +520,33 @@
   cursor: default;
   font: inherit;
   color: inherit;
+}
+
+.album-viewer__credit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 18px 8px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.album-viewer__credit--self {
+  letter-spacing: 0.02em;
+}
+
+.album-viewer__credit--admin {
+  font-size: 9px;
 }
 
 .album-viewer__grid.is-ready .album-viewer__cell {
@@ -669,9 +697,32 @@
 }
 
 .photo-preview__uploader {
-  margin: 12px 0 0;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--light-grey);
+}
+
+.photo-preview__uploader-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #8a8a8a;
+}
+
+.photo-preview__uploader-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--black);
+  overflow-wrap: anywhere;
+}
+
+.photo-preview__uploader--self .photo-preview__uploader-value {
+  color: #176d59;
 }
 
 .photo-preview__delete {
