@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+Disallow: /api/
+
+Sitemap: https://bcpsc-ssc27.vercel.app/sitemap.xml

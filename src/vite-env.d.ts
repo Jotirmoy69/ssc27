@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID: string;
+  /** `true` = grayscale images (default). `false` = full color. */
+  readonly VITE_GRAYSCALE?: string;
   readonly VITE_ADMIN_EMAIL?: string;
   readonly VITE_ADMIN_EMAIL_1?: string;
   readonly VITE_ADMIN_EMAIL_2?: string;

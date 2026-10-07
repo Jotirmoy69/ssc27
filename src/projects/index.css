@@ -203,7 +203,7 @@
   height: 100%;
   object-fit: cover;
   position: absolute;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
 }
 
 .project__icon {
@@ -442,7 +442,7 @@
   background-color: var(--light-grey);
   background-size: cover;
   background-position: center;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
   pointer-events: none;
 }
 
@@ -575,7 +575,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
   transition: transform 0.35s ease;
 }
 
@@ -647,7 +647,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
 }
 
 .photo-preview__meta {
@@ -947,7 +947,7 @@
   min-height: 180px;
   object-fit: cover;
   display: block;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
 }
 
 .album-upload__thumbs {
@@ -971,7 +971,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  filter: grayscale(100%);
+  filter: grayscale(var(--site-grayscale, 100%));
 }
 
 .album-upload__thumb-remove {

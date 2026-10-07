@@ -2,12 +2,90 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Faint Film Layout Switch</title>
+
+    <!-- Primary SEO -->
+    <title>School Memories — Shared Photo Albums</title>
+    <meta
+      name="description"
+      content="School Memories is a shared photo album gallery. Browse classmates’ albums, upload school photos, and keep your memories in one place."
+    />
+    <meta
+      name="keywords"
+      content="school memories, photo album, school photos, classmate albums, shared gallery, yearbook photos"
+    />
+    <meta name="author" content="School Memories" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="theme-color" content="#222222" />
+    <meta name="color-scheme" content="light" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="application-name" content="School Memories" />
+    <meta name="apple-mobile-web-app-title" content="School Memories" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="canonical" href="https://bcpsc-ssc27.vercel.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bcpsc-ssc27.vercel.app/" />
+    <meta property="og:site_name" content="School Memories" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="School Memories — Shared Photo Albums" />
+    <meta
+      property="og:description"
+      content="Browse and share school photo albums. Create albums, add photos, and revisit your classmates’ memories."
+    />
+    <meta property="og:image" content="https://bcpsc-ssc27.vercel.app/images/1.jpeg" />
+    <meta property="og:image:alt" content="School Memories photo gallery preview" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="School Memories — Shared Photo Albums" />
+    <meta
+      name="twitter:description"
+      content="Browse and share school photo albums. Create albums, add photos, and revisit your classmates’ memories."
+    />
+    <meta name="twitter:image" content="https://bcpsc-ssc27.vercel.app/images/1.jpeg" />
+    <meta name="twitter:image:alt" content="School Memories photo gallery preview" />
+
+    <!-- Icons & PWA -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "School Memories",
+        "alternateName": "School Memories Photo Albums",
+        "url": "https://bcpsc-ssc27.vercel.app/",
+        "description": "A shared photo album gallery for school memories, classmate albums, and photo uploads.",
+        "inLanguage": "en"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "ImageGallery",
+        "name": "School Memories",
+        "url": "https://bcpsc-ssc27.vercel.app/",
+        "description": "Browse shared school photo albums and upload your own memories."
+      }
+    </script>
   </head>
   <body>
-    <main id="root"></main>
+    <main id="root">
+      <noscript>
+        <h1>School Memories</h1>
+        <p>
+          Shared photo albums for school memories. Enable JavaScript to browse albums, view photos, and
+          upload with Google sign-in.
+        </p>
+      </noscript>
+    </main>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

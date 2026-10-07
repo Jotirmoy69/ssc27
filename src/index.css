@@ -17,6 +17,12 @@
   --foreground: #222222;
   --brand: #222222;
   --color-brand: #222222;
+  /* Set from VITE_GRAYSCALE in main.tsx — 100% = B&W, 0% = color */
+  --site-grayscale: 100%;
+}
+
+:root.site-color {
+  --site-grayscale: 0%;
 }
 
 *,

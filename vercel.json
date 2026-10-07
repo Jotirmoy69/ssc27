@@ -3,7 +3,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/((?!assets/|images/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!assets/|images/|favicon\\.png|robots\\.txt|sitemap\\.xml|site\\.webmanifest).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
