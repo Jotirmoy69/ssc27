@@ -102,7 +102,7 @@ export function redactAlbumForViewer(
   };
 }
 
-/** Visible uploader label: admin sees identity, owner sees “You”, others see nothing. */
+/** Visible uploader label: admin sees email, owner sees “You”, others see nothing. */
 export function getUploaderDisplay(
   photo: PhotoEntry,
   opts: { isAdmin: boolean; currentUserId?: string | null },
@@ -111,13 +111,11 @@ export function getUploaderDisplay(
 
   if (opts.isAdmin) {
     const email = photo.ownerEmail?.trim();
-    const name = photo.ownerName?.trim();
-    if (email && name) return { kind: 'admin', label: isSelf ? `${email} (you)` : `${email} · ${name}` };
     if (email) return { kind: 'admin', label: isSelf ? `${email} (you)` : email };
-    if (name) return { kind: 'admin', label: isSelf ? `${name} (you)` : name };
     if (photo.ownerId === 'legacy') return { kind: 'admin', label: 'Unknown (legacy)' };
     if (isSelf) return { kind: 'admin', label: 'You' };
-    return photo.ownerId ? { kind: 'admin', label: `User ${photo.ownerId.slice(0, 8)}…` } : null;
+    // Prefer never showing raw Google subject IDs to admins.
+    return { kind: 'admin', label: 'Email unavailable' };
   }
 
   if (isSelf) return { kind: 'self', label: 'You' };
