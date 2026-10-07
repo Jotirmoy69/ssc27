@@ -39,8 +39,7 @@ export function App() {
           startCovered
         />
         <AuthChip />
-        <Projects />
-        <Agentation />
+        <Projects /> 
       </div>
     </AuthProvider>
   );
