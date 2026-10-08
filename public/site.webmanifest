@@ -1,7 +1,7 @@
 {
-  "name": "School Memories",
-  "short_name": "Memories",
-  "description": "Shared photo album gallery for school memories and classmate photos.",
+  "name": "BCPSC SSC 27 School Memories",
+  "short_name": "BCPSC SSC27",
+  "description": "BCPSC SSC 27 (bcpsc-ssc27) shared photo albums for classmate school memories.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

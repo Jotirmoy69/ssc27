@@ -105,6 +105,10 @@ function EyeIcon() {
 export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsListProps) {
   return (
     <div className="projects-list">
+      <h1 className="projects-list__brand">
+        BCPSC SSC 27 School Memories
+        <span className="projects-list__brand-aliases">bcpsc-ssc27 · ssc27 · bcpscssc27</span>
+      </h1>
       <div className="projects-list__contents">
         {projects.map((project) => (
           <button
@@ -135,9 +139,9 @@ export function ProjectsList({ projects, onOpenAlbum, onAddAlbum }: ProjectsList
       </div>
       <div className="projects-list__preview">
         <p className="projects-years">
-          <span>2015</span>
+          <span>BCPSC</span>
           <span />
-          <span>2025</span>
+          <span>SSC 27</span>
         </p>
       </div>
     </div>
