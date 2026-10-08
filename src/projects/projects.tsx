@@ -336,7 +336,7 @@ export function Projects() {
   };
 
   const overlayOpen = Boolean(openAlbum || upload || stairsActive);
-  const canEditOpenAlbum = Boolean(
+  const canManageOpenAlbum = Boolean(
     openAlbum && canManageAlbum({ createdById: openAlbum.project.createdById }, user, isAdmin),
   );
 
@@ -360,7 +360,7 @@ export function Projects() {
           currentUserId={user?.id ?? null}
           onDeletePhoto={handleDeletePhoto}
           onEditAlbum={
-            canEditOpenAlbum
+            canManageOpenAlbum
               ? () =>
                   requireAuth(() =>
                     setUpload({
@@ -372,14 +372,17 @@ export function Projects() {
                   )
               : undefined
           }
-          onAddPhotos={() =>
-            requireAuth(() =>
-              setUpload({
-                mode: 'add',
-                albumId: openAlbum.project.albumId,
-                albumName: openAlbum.project.person,
-              }),
-            )
+          onAddPhotos={
+            canManageOpenAlbum
+              ? () =>
+                  requireAuth(() =>
+                    setUpload({
+                      mode: 'add',
+                      albumId: openAlbum.project.albumId,
+                      albumName: openAlbum.project.person,
+                    }),
+                  )
+              : undefined
           }
         />
       ) : null}
