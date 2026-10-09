@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
-import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../api/compress-image';
+import { assertAllowedImageFile, isAllowedImageFile, prepareImageForUpload } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
 import { useSmoothScroll } from '../lib/smooth-scroll';
 import { AnimatedPlusIcon } from './animated-plus-icon';
@@ -23,8 +23,8 @@ type AlbumEditProps = {
 const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.webp,.gif,.avif';
 
 async function uploadFile(file: File): Promise<string> {
-  const webp = await compressToWebP(file);
-  const result = await uploadWebP(webp, `${file.name.replace(/\.[^.]+$/, '') || 'memory'}.webp`);
+  const prepared = await prepareImageForUpload(file);
+  const result = await uploadWebP(prepared.blob, prepared.filename);
   const remoteUrl = result.key
     ? imageUrl(`/api/image?key=${encodeURIComponent(result.key)}`)
     : imageUrl(result.url || '');

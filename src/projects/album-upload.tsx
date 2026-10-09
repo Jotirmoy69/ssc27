@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { motion, useReducedMotion } from 'motion/react';
 import { SmoothInput } from '@/components/ui/skiper-ui/skiper106';
-import { assertAllowedImageFile, compressToWebP, isAllowedImageFile } from '../api/compress-image';
+import { assertAllowedImageFile, isAllowedImageFile, prepareImageForUpload } from '../api/compress-image';
 import { imageUrl, uploadWebP } from '../api/school-memories';
 import { useSmoothScroll } from '../lib/smooth-scroll';
 import { AnimatedPlusIcon } from './animated-plus-icon';
@@ -84,8 +84,8 @@ function AnimatedCloseIcon() {
 }
 
 async function uploadFile(file: File): Promise<string> {
-  const webp = await compressToWebP(file);
-  const result = await uploadWebP(webp, `${file.name.replace(/\.[^.]+$/, '') || 'memory'}.webp`);
+  const prepared = await prepareImageForUpload(file);
+  const result = await uploadWebP(prepared.blob, prepared.filename);
   // Prefer the Worker key path so album attach can resolve ownership reliably.
   const remoteUrl = result.key
     ? imageUrl(`/api/image?key=${encodeURIComponent(result.key)}`)
